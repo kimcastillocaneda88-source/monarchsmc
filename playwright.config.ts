@@ -20,13 +20,16 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:3210",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
+    // The full Chromium build rather than chrome-headless-shell, which is not
+    // present in every environment (including some CI images).
+    channel: "chromium",
     launchOptions: {
       executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
     },
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", use: { ...devices["Pixel 7"] } },
+    { name: "desktop", use: { ...devices["Desktop Chrome"], channel: "chromium" } },
+    { name: "mobile", use: { ...devices["Pixel 7"], channel: "chromium" } },
   ],
   webServer: {
     command: "node scripts/e2e-server.mjs",

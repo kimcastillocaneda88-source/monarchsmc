@@ -12,12 +12,11 @@
  *
  * Refuses to run against a real project unless SEED_ALLOW_PRODUCTION=true.
  */
-import { adminAuth, adminDb, isAdminConfigured } from "../lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { cliAuth, cliDb, isConfigured, usingEmulator } from "./firebase-admin-cli";
 
 const DEMO = "[DEMO DATA — replace before launch]";
 
-const usingEmulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
 const allowProduction = process.env.SEED_ALLOW_PRODUCTION === "true";
 
 interface SeedAccount {
@@ -86,7 +85,7 @@ function isoDaysFromNow(days: number): string {
 }
 
 async function upsertAccount(account: SeedAccount): Promise<string> {
-  const auth = adminAuth();
+  const auth = cliAuth();
   let uid: string;
 
   try {
@@ -108,7 +107,7 @@ async function upsertAccount(account: SeedAccount): Promise<string> {
     membershipStatus: account.membershipStatus,
   });
 
-  const db = adminDb();
+  const db = cliDb();
   await db.collection("users").doc(uid).set(
     {
       email: account.email,
@@ -157,19 +156,19 @@ async function upsertAccount(account: SeedAccount): Promise<string> {
 }
 
 async function seed(): Promise<void> {
-  if (!isAdminConfigured()) {
+  if (!isConfigured()) {
     throw new Error(
       "Firebase is not configured. Set FIRESTORE_EMULATOR_HOST and FIREBASE_PROJECT_ID, or provide service account credentials.",
     );
   }
 
-  if (!usingEmulator && !allowProduction) {
+  if (!usingEmulator() && !allowProduction) {
     throw new Error(
       "Refusing to seed a non-emulator project. Set SEED_ALLOW_PRODUCTION=true only if you really mean it.",
     );
   }
 
-  const db = adminDb();
+  const db = cliDb();
   const uids = new Map<string, string>();
 
   for (const account of ACCOUNTS) {
