@@ -92,7 +92,10 @@ export function renderMarkdown(source: string): ReactNode {
     if (paragraph.length === 0) return;
     const text = paragraph.join(" ");
     blocks.push(
-      <p key={`p${key++}`} className="text-mist leading-relaxed [&+p]:mt-5">
+      // Spacing is on the block itself rather than an adjacent-sibling rule:
+      // `[&+p]:mt-5` only spaced consecutive paragraphs, so a paragraph
+      // immediately after a heading collided with it.
+      <p key={`p${key++}`} className="mt-5 leading-relaxed text-mist first:mt-0">
         {renderInline(text, `p${key}`)}
       </p>,
     );
@@ -103,8 +106,8 @@ export function renderMarkdown(source: string): ReactNode {
     if (!list) return;
     const { ordered, items } = list;
     const className = ordered
-      ? "mt-5 list-decimal space-y-2 pl-6 text-mist marker:text-gold"
-      : "mt-5 list-disc space-y-2 pl-6 text-mist marker:text-gold";
+      ? "mt-5 list-decimal space-y-2 pl-6 text-mist first:mt-0 marker:text-gold"
+      : "mt-5 list-disc space-y-2 pl-6 text-mist first:mt-0 marker:text-gold";
     blocks.push(
       ordered ? (
         <ol key={`l${key++}`} className={className}>
@@ -132,7 +135,7 @@ export function renderMarkdown(source: string): ReactNode {
     blocks.push(
       <blockquote
         key={`q${key++}`}
-        className="mt-6 border-l-2 border-gold/60 pl-5 font-display text-xl leading-snug tracking-wide text-bone uppercase"
+        className="mt-6 border-l-2 border-gold/60 pl-5 font-display text-xl leading-snug tracking-wide text-bone uppercase first:mt-0"
       >
         {renderInline(quote.join(" "), `q${key}`)}
       </blockquote>,
@@ -167,10 +170,10 @@ export function renderMarkdown(source: string): ReactNode {
       const text = heading[2] ?? "";
       const classes =
         level === 1
-          ? "mt-10 font-display text-3xl tracking-wide text-bone uppercase sm:text-4xl"
+          ? "mt-10 font-display text-3xl tracking-wide text-bone uppercase first:mt-0 sm:text-4xl"
           : level === 2
-            ? "mt-10 font-display text-2xl tracking-wide text-bone uppercase sm:text-3xl"
-            : "mt-8 font-display text-xl tracking-[0.08em] text-gold uppercase";
+            ? "mt-10 font-display text-2xl tracking-wide text-bone uppercase first:mt-0 sm:text-3xl"
+            : "mt-8 font-display text-xl tracking-[0.08em] text-gold uppercase first:mt-0";
       const Tag = (level === 1 ? "h2" : level === 2 ? "h3" : "h4") as "h2" | "h3" | "h4";
       blocks.push(
         <Tag key={`hd${key++}`} className={classes}>
