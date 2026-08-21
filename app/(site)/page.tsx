@@ -17,7 +17,9 @@ import { siteUrl } from "@/lib/utils";
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: "MONARCHS MC — Ride with purpose. Ride as one.",
+  // `absolute` bypasses the root layout's "%s · MONARCHS MC" template, which
+  // would otherwise brand the homepage twice.
+  title: { absolute: "MONARCHS MC — Ride with purpose. Ride as one." },
   description:
     "MONARCHS MC is a motorcycle club built on loyalty, respect and the road we share. Club rides, events, photography and the brotherhood behind them.",
   alternates: { canonical: siteUrl("/") },
