@@ -355,6 +355,7 @@ unless `SEED_ALLOW_PRODUCTION=true`):
 | `editor@monarchs.test` | `monarchs-editor-2026` | editor / active |
 | `member@monarchs.test` | `monarchs-member-2026` | member / active |
 | `pending@monarchs.test` | `monarchs-pending-2026` | member / pending |
+| `lifecycle@monarchs.test` | `monarchs-lifecycle-2026` | member / pending (used only by the membership-lifecycle test) |
 
 Every seeded document is prefixed `[DEMO DATA — replace before launch]`. None of
 it asserts anything about the real club. **Production can start with completely
@@ -504,6 +505,12 @@ Stated plainly rather than hidden:
 - **Rate limiting is per fixed window, per hashed IP.** Sufficient against
   casual abuse and bots. A determined distributed attacker needs App Check
   enforcement and, if it ever matters, Cloud Armor.
+- **The sign-in limit is deliberately loose.** Several members often share one
+  address (clubhouse wifi, carrier CGNAT), so a tight per-IP limit would lock
+  all of them out because one person signed in repeatedly. Brute-force
+  protection sits where it belongs — Firebase Auth throttles per account — and
+  the session endpoint requires an already-verified ID token, so it is not a
+  password-guessing surface.
 
 ---
 

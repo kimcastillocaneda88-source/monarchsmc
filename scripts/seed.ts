@@ -76,6 +76,15 @@ const ACCOUNTS: SeedAccount[] = [
     role: "member",
     membershipStatus: "pending",
   },
+  {
+    // Exists so the membership lifecycle can be exercised without mutating an
+    // account another test signs in as. Nothing signs in as this one.
+    email: "lifecycle@monarchs.test",
+    password: "monarchs-lifecycle-2026",
+    displayName: "Demo Lifecycle Member",
+    role: "member",
+    membershipStatus: "pending",
+  },
 ];
 
 function isoDaysFromNow(days: number): string {

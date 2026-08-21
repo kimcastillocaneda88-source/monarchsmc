@@ -5,10 +5,15 @@ import { listPublishedNewsSlugs } from "@/lib/data/news";
 import { siteUrl } from "@/lib/utils";
 
 /**
- * Rebuilt hourly rather than baked into the deployment, so rides, events and
- * articles published after the last deploy still appear.
+ * Generated per request.
+ *
+ * With a revalidate window the sitemap is still prerendered at build time, so
+ * for the whole first window after a deploy it serves whatever the database
+ * held during the build — which, in a build without credentials, is nothing.
+ * A sitemap is fetched by crawlers rather than visitors, so generating it on
+ * demand costs nothing measurable and is always correct.
  */
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 /**
  * Public routes only.

@@ -27,11 +27,24 @@ export async function POST(request: Request) {
     return json(503, { message: "Authentication is not configured on this deployment." });
   }
 
+  /**
+   * A deliberately generous per-IP ceiling on session creation.
+   *
+   * This is a crude flood guard, not brute-force protection: several members
+   * routinely share one address — a clubhouse wifi, or a mobile carrier behind
+   * CGNAT — and a tight per-IP limit would lock all of them out because one
+   * person signed in a few times. Brute force is handled where it belongs, by
+   * Firebase Auth's own per-account throttling, which returns
+   * auth/too-many-requests long before this limit is reached.
+   *
+   * Note also that reaching this endpoint at all requires an already-verified
+   * Firebase ID token, so it is not a password-guessing surface.
+   */
   try {
     await consumeRateLimit({
       key: "session",
       subject: await subjectFromRequest(request.headers),
-      limit: 20,
+      limit: 120,
       windowMs: 10 * 60 * 1000,
     });
   } catch {

@@ -33,8 +33,30 @@ async function loadSession(): Promise<SessionUser | null> {
   const cookie = store.get(SESSION_COOKIE)?.value;
   if (!cookie) return null;
 
+  let decoded: Awaited<ReturnType<ReturnType<typeof adminAuth>["verifySessionCookie"]>>;
   try {
-    const decoded = await adminAuth().verifySessionCookie(cookie, true);
+    // checkRevoked: a suspension or role change revokes refresh tokens, and
+    // that must end existing sessions immediately rather than at expiry.
+    decoded = await adminAuth().verifySessionCookie(cookie, true);
+  } catch (error) {
+    /**
+     * Only a genuine verification failure means "signed out".
+     *
+     * Treating every error that way — including a transient failure reaching
+     * the auth service — silently logs a member out mid-action, which looks
+     * to them like the site lost their session for no reason. Anything that
+     * is not a recognised auth failure is rethrown so it surfaces as an error
+     * the operator can see, instead of a mysterious redirect to sign-in.
+     */
+    const code =
+      typeof error === "object" && error !== null && "code" in error
+        ? String((error as { code: unknown }).code)
+        : "";
+    if (code.startsWith("auth/")) return null;
+    throw error;
+  }
+
+  try {
     const snap = await adminDb().collection("users").doc(decoded.uid).get();
     if (!snap.exists) return null;
     const data = snap.data() ?? {};
@@ -52,7 +74,8 @@ async function loadSession(): Promise<SessionUser | null> {
       displayName: typeof data.displayName === "string" ? data.displayName : (decoded.name ?? null),
     };
   } catch {
-    // Expired, revoked or tampered cookie — treated as signed out.
+    // The cookie verified but the account record could not be read. Treat the
+    // request as unauthenticated rather than guessing at privileges.
     return null;
   }
 }

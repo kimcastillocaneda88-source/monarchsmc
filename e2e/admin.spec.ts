@@ -54,15 +54,31 @@ test.describe("admin", () => {
     await expect(page.getByText(/only a superadmin can assign roles/i)).toBeVisible();
   });
 
-  test("suspends and reinstates a member", async ({ page }) => {
+  /**
+   * Exercises the membership lifecycle through the real UI, including the
+   * confirmation dialog that guards it.
+   *
+   * Uses the dedicated lifecycle account rather than one another test signs in
+   * as: activating and deactivating is shared state, and coupling it to an
+   * account under test elsewhere makes the suite order-dependent.
+   */
+  test("activates a member and deactivates them again", async ({ page }) => {
     await signIn(page, "admin");
-    await page.goto("/admin/members?status=active");
+    await page.goto("/admin/members?q=lifecycle");
 
-    const row = page.locator("li", { hasText: "pending@monarchs.test" });
-    // Work on the pending demo account so an active test account is unaffected.
-    await page.goto("/admin/members?status=pending");
-    await expect(page.getByText("pending@monarchs.test").first()).toBeVisible();
-    void row;
+    const row = page.locator("li", { hasText: "lifecycle@monarchs.test" });
+    await expect(row).toBeVisible();
+
+    await row.getByRole("button", { name: /^activate$/i }).click();
+    // Destructive and privileged actions go through a confirmation dialog.
+    await page.getByRole("dialog").getByRole("button", { name: /^activate$/i }).click();
+    await expect(page.getByText(/membership set to active/i)).toBeVisible({ timeout: 20_000 });
+
+    await page.goto("/admin/members?q=lifecycle");
+    const activeRow = page.locator("li", { hasText: "lifecycle@monarchs.test" });
+    await activeRow.getByRole("button", { name: /^deactivate$/i }).click();
+    await page.getByRole("dialog").getByRole("button", { name: /^deactivate$/i }).click();
+    await expect(page.getByText(/membership set to inactive/i)).toBeVisible({ timeout: 20_000 });
   });
 });
 
