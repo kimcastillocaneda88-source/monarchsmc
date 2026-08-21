@@ -1,0 +1,265 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------
+   MONARCHS MC — design tokens
+
+   A restrained palette: near-black surfaces, warm off-white type, and a
+   single muted metallic gold used sparingly for rules, labels and accents.
+   ------------------------------------------------------------------ */
+
+@theme {
+  --font-display: var(--font-oswald), "Oswald", "Arial Narrow", system-ui, sans-serif;
+  --font-sans: var(--font-inter), "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-ink: #08080a;
+  --color-charcoal: #0e0e11;
+  --color-graphite: #141418;
+  --color-steel: #1c1c21;
+  --color-ash: #2a2a31;
+  --color-iron: #3a3a44;
+  --color-smoke: #6b6b76;
+  --color-mist: #9b9ba5;
+  --color-bone: #f2efe8;
+  --color-gold: #c8a45c;
+  --color-goldbright: #e2c489;
+  --color-bronze: #7d6234;
+  --color-danger: #d05a44;
+  --color-success: #74a06d;
+  --color-warning: #d0a04a;
+
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---------------------------------------------------------------- base */
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-ink);
+    color: var(--color-bone);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* Prevents horizontal overflow from full-bleed decorative elements. */
+    overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    line-height: 0.95;
+    letter-spacing: 0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  p {
+    margin: 0;
+    text-wrap: pretty;
+  }
+
+  /* A single, unmistakable focus treatment across the whole app. */
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  /* Only remove the default ring where :focus-visible is supported. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::selection {
+    background: var(--color-gold);
+    color: var(--color-ink);
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-color: var(--color-ash) var(--color-ink);
+    scrollbar-width: thin;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-ink);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-ash);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-iron);
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  /* Firefox renders a red glow on :invalid by default; our own error state
+     is authoritative and appears only after a field has been touched. */
+  input:invalid,
+  textarea:invalid {
+    box-shadow: none;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+}
+
+/* ------------------------------------------------------------ utilities */
+
+@layer utilities {
+  /* Editorial eyebrow label: tiny, wide-tracked, gold. */
+  .u-eyebrow {
+    font-family: var(--font-display);
+    font-size: 0.6875rem;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--color-gold);
+    line-height: 1;
+  }
+
+  /* Fine metallic hairline used to separate editorial blocks. */
+  .u-hairline {
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-gold) 55%, transparent),
+      color-mix(in srgb, var(--color-gold) 12%, transparent) 45%,
+      transparent
+    );
+    height: 1px;
+    border: 0;
+  }
+
+  /* Very low-amplitude film grain. Adds material texture to flat black
+     surfaces without reading as noise. */
+  .u-grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: overlay;
+  }
+
+  /* Scrim that keeps hero type legible over any photograph. */
+  .u-scrim {
+    background:
+      linear-gradient(to top, var(--color-ink) 2%, color-mix(in srgb, var(--color-ink) 55%, transparent) 42%, transparent 78%),
+      linear-gradient(to right, color-mix(in srgb, var(--color-ink) 78%, transparent), transparent 62%);
+  }
+
+  .u-scrim-soft {
+    background: linear-gradient(
+      to top,
+      color-mix(in srgb, var(--color-ink) 92%, transparent),
+      color-mix(in srgb, var(--color-ink) 20%, transparent) 60%,
+      transparent
+    );
+  }
+
+  /* Diagonal hatch for empty image slots — deliberate, never a broken image. */
+  .u-hatch {
+    background-color: var(--color-graphite);
+    background-image: repeating-linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-gold) 6%, transparent) 0 1px,
+      transparent 1px 11px
+    );
+  }
+
+  .u-display-tight {
+    letter-spacing: -0.015em;
+    line-height: 0.88;
+  }
+
+  /* Reveal-on-scroll. Elements start visible and are only hidden once JS
+     confirms IntersectionObserver support, so nothing disappears without it. */
+  .u-reveal {
+    opacity: 1;
+  }
+  .u-reveal[data-reveal="pending"] {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  .u-reveal[data-reveal="shown"] {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 0.85s var(--ease-out-expo),
+      transform 0.85s var(--ease-out-expo);
+  }
+
+  .u-underline-grow {
+    background-image: linear-gradient(var(--color-gold), var(--color-gold));
+    background-repeat: no-repeat;
+    background-size: 0% 1px;
+    background-position: 0 100%;
+    transition: background-size 0.4s var(--ease-out-expo);
+  }
+  .u-underline-grow:hover,
+  .u-underline-grow:focus-visible {
+    background-size: 100% 1px;
+  }
+}
+
+/* --------------------------------------------------------- motion pref */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .u-reveal[data-reveal="pending"] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------- print & forced */
+
+@media (forced-colors: active) {
+  .u-hairline {
+    background: CanvasText;
+  }
+}

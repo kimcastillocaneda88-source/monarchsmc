@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#08080a"/>
+  <g stroke="#c8a45c" stroke-opacity="0.10" stroke-width="1">
+    <path d="M0 160h1200M0 470h1200"/>
+  </g>
+  <g transform="translate(96 210)">
+    <g fill="none" stroke="#c8a45c" stroke-width="4">
+      <path d="M0 62V16l14 22L28 8l14 30 14-22v46"/>
+      <path d="M-4 2h64"/>
+    </g>
+    <text x="0" y="150" fill="#f2efe8" font-family="Oswald, Arial Narrow, sans-serif"
+          font-size="104" letter-spacing="6">MONARCHS MC</text>
+    <text x="0" y="212" fill="#c8a45c" font-family="Oswald, Arial Narrow, sans-serif"
+          font-size="34" letter-spacing="10">RIDE WITH PURPOSE. RIDE AS ONE.</text>
+  </g>
+</svg>

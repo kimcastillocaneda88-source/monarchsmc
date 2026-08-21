@@ -1,0 +1,67 @@
+rules_version = '2';
+
+/**
+ * MONARCHS MC — Firebase Storage Security Rules
+ *
+ * WRITES ARE DENIED TO EVERY CLIENT, everywhere. That is deliberate rather
+ * than an oversight: all uploads go through POST /api/admin/upload, which
+ * authenticates the caller, checks their role for the target area, applies a
+ * per-user rate limit, enforces a size ceiling, and identifies the file by
+ * sniffing its actual leading bytes instead of trusting the declared MIME type
+ * or extension. Allowing direct client writes would let every one of those
+ * checks be skipped.
+ *
+ * Reads are split by area:
+ *   gallery/ news/ rides/ events/  — deliberately public; these images appear
+ *                                    on the public website.
+ *   members/                       — private; served only through
+ *                                    /api/media/member/[uid], which checks who
+ *                                    is asking.
+ *   documents/                     — private; served only through
+ *                                    /api/documents/[id], which checks the
+ *                                    member's role and records the download.
+ *
+ * Knowing a Storage path is therefore never sufficient to read a private file.
+ */
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    /* Public imagery shown on the public site. */
+    match /gallery/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /news/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /rides/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /events/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    /* Member photographs. Private: the authorising route decides who sees them. */
+    match /members/{uid}/{allPaths=**} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    /* Club documents. Private under all circumstances. */
+    match /documents/{allPaths=**} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    /* Anything else is denied outright. */
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

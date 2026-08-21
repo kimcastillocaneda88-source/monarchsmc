@@ -1,0 +1,305 @@
+rules_version = '2';
+
+/**
+ * MONARCHS MC — Cloud Firestore Security Rules
+ *
+ * These rules are the authorization boundary for anything that talks to
+ * Firestore directly with a client SDK. They are deliberately independent of
+ * the application's UI and route guards: a member who opens a console and
+ * writes to the database by hand hits exactly these rules.
+ *
+ * Two things to keep in mind while reading:
+ *
+ *  1. RULES ARE NOT FILTERS. For a `list` operation the rule is evaluated
+ *     against every document the query would return; if one fails, the whole
+ *     query fails. Every query the application performs is therefore
+ *     constrained so its entire result set satisfies these rules — see the
+ *     comments above each collection.
+ *
+ *  2. THE ADMIN SDK BYPASSES THESE RULES ENTIRELY. All privileged writes in
+ *     this application go through server actions and route handlers using the
+ *     Admin SDK, which perform their own authorization checks (lib/auth/guards.ts).
+ *     Several collections below are therefore client-write-denied outright:
+ *     that is intentional, because it means server-side validation, rate
+ *     limiting and content sniffing cannot be bypassed by writing directly.
+ *
+ * Authorization state lives in custom claims (role, membershipStatus), which
+ * trusted server code keeps in sync with users/{uid}.
+ */
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* ------------------------------------------------------- identity */
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function claim(name, fallback) {
+      return signedIn() && name in request.auth.token ? request.auth.token[name] : fallback;
+    }
+
+    function role() {
+      return claim('role', 'none');
+    }
+
+    function membershipStatus() {
+      return claim('membershipStatus', 'none');
+    }
+
+    /** Signed in AND an active member. Authentication alone grants nothing. */
+    function activeMember() {
+      return signedIn() && membershipStatus() == 'active';
+    }
+
+    function rankOf(name) {
+      return name == 'superadmin' ? 4
+           : name == 'admin' ? 3
+           : name == 'editor' ? 2
+           : name == 'member' ? 1
+           : 0;
+    }
+
+    function atLeast(minimum) {
+      return activeMember() && rankOf(role()) >= rankOf(minimum);
+    }
+
+    function isEditor()     { return atLeast('editor'); }
+    function isAdmin()      { return atLeast('admin'); }
+    function isSuperadmin() { return activeMember() && role() == 'superadmin'; }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    /** Restricts an update to a named set of fields. */
+    function onlyChanges(allowed) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+
+    /* ---------------------------------------------------------- users */
+    /**
+     * users/{uid} is the authoritative record of role and membership status.
+     * NO client may write it under any circumstances — including the account's
+     * own owner — so self-elevation is impossible even with a forged request.
+     * Only the Admin SDK, behind lib/actions/admin/members.ts, changes it.
+     */
+    match /users/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    /* -------------------------------------------------------- members */
+    /**
+     * members/{uid} is the club-facing profile.
+     *
+     * Readable by:
+     *   - anyone, but only for a published officer (this is what /about shows);
+     *     an anonymous client must constrain its query with
+     *     where('publicOfficer','==',true).where('membershipStatus','==','active')
+     *   - any active member (the directory)
+     *
+     * A member may update only the allow-listed fields below. role,
+     * membershipStatus, position, publicOfficer, officerOrder, joinedAt and
+     * createdAt are absent from every allow-list, so they cannot be written by
+     * a client at all.
+     */
+    function isPublishedOfficer() {
+      return resource.data.publicOfficer == true
+          && resource.data.membershipStatus == 'active';
+    }
+
+    function memberSelfEditableFields() {
+      return [
+        'displayName', 'nickname', 'motorcycle', 'bio', 'chapter',
+        'ridingSince', 'privacy', 'photoPath', 'photoUrl', 'updatedAt'
+      ];
+    }
+
+    function adminEditableMemberFields() {
+      return [
+        'displayName', 'nickname', 'motorcycle', 'bio', 'chapter', 'ridingSince',
+        'privacy', 'photoPath', 'photoUrl', 'position', 'publicOfficer',
+        'officerOrder', 'updatedAt'
+      ];
+    }
+
+    match /members/{uid} {
+      allow read: if isPublishedOfficer() || activeMember() || isAdmin();
+
+      allow update: if (isOwner(uid) && activeMember() && onlyChanges(memberSelfEditableFields()))
+                    || (isAdmin() && onlyChanges(adminEditableMemberFields()));
+
+      // Profiles are created and removed alongside the account record, which is
+      // server-only.
+      allow create, delete: if false;
+    }
+
+    /* -------------------------------------------------- member contact */
+    /**
+     * Contact details are separated from the profile so they can be protected
+     * more aggressively. Never publicly readable — the directory's email/phone
+     * columns are assembled server-side from each member's privacy choices.
+     */
+    match /memberContact/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+      allow update: if isOwner(uid) && activeMember()
+                    && onlyChanges(['phone', 'location', 'emergencyContactName',
+                                    'emergencyContactPhone', 'updatedAt']);
+      allow create, delete: if false;
+    }
+
+    /* -------------------------------------------- member admin records */
+    /** Internal notes and membership history. Administrators only, always. */
+    match /memberAdmin/{uid} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    /* --------------------------------------------------- applications */
+    /**
+     * Membership applications.
+     *
+     * Reads are restricted to administrators — an applicant cannot read their
+     * own application, which is what keeps internal review status private.
+     *
+     * Creates are denied to clients on purpose: the public join form posts to a
+     * server action that applies validation, a honeypot, a timing check and a
+     * per-IP rate limit. Allowing direct client writes would let all of that be
+     * skipped.
+     *
+     * Administrators may triage an application — status, notes and the review
+     * stamp — but never rewrite the applicant's own answers, and never delete
+     * the record.
+     */
+    match /applications/{applicationId} {
+      allow read: if isAdmin();
+      allow update: if isAdmin()
+                    && onlyChanges(['status', 'internalNotes', 'reviewedBy',
+                                    'reviewedAt', 'linkedUid', 'updatedAt']);
+      allow create, delete: if false;
+    }
+
+    /* ---------------------------------------------------------- rides */
+    /**
+     * Public queries must be constrained with
+     *   where('published','==',true).where('visibility','==','public')
+     * Member queries must be constrained with where('published','==',true).
+     */
+    match /rides/{rideId} {
+      allow read: if (resource.data.published == true && resource.data.visibility == 'public')
+                  || (activeMember() && resource.data.published == true)
+                  || isAdmin();
+      allow create, update, delete: if isAdmin();
+
+      /**
+       * RSVPs are keyed by uid, which makes the operation idempotent: a member
+       * cannot accumulate multiple responses for one ride because there is only
+       * ever one document path available to them.
+       */
+      match /rsvps/{uid} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow create, update: if isOwner(uid)
+                              && activeMember()
+                              && request.resource.data.response in ['going', 'maybe', 'not_going'];
+        allow delete: if isOwner(uid) || isAdmin();
+      }
+    }
+
+    /* --------------------------------------------------------- events */
+    match /events/{eventId} {
+      allow read: if (resource.data.status == 'published' && resource.data.visibility == 'public')
+                  || (activeMember() && resource.data.status == 'published')
+                  || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    /* -------------------------------------------------------- gallery */
+    /** Public queries must be constrained with where('approved','==',true). */
+    match /gallery/{itemId} {
+      allow read: if resource.data.approved == true || isEditor();
+      allow create, update, delete: if isEditor();
+    }
+
+    /* ----------------------------------------------------------- news */
+    /**
+     * Drafts are never publicly readable. A public query must be constrained
+     * with where('published','==',true); an unconstrained list would include a
+     * draft and is therefore denied in full.
+     */
+    match /news/{articleId} {
+      allow read: if resource.data.published == true || isEditor();
+      allow create, update, delete: if isEditor();
+    }
+
+    /* -------------------------------------------------- announcements */
+    /** Member-only content: published state AND active membership are required. */
+    match /announcements/{announcementId} {
+      allow read: if (activeMember() && resource.data.published == true) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    /* ------------------------------------------------------ documents */
+    /**
+     * Metadata only — the files live in Storage, where every client read is
+     * denied. A member may read the metadata of a document their role reaches;
+     * because rules are not filters, listing requires constraining the query by
+     * requiredRole, which is why the application lists them server-side.
+     */
+    match /documents/{documentId} {
+      allow read: if activeMember() && rankOf(role()) >= rankOf(resource.data.requiredRole);
+      allow create, update, delete: if isAdmin();
+    }
+
+    /* ------------------------------------------------ contact messages */
+    /** Never publicly readable. Created only by the rate-limited server action. */
+    match /contactMessages/{messageId} {
+      allow read: if isAdmin();
+      // Triage only — the sender's own words are never editable, and messages
+      // are archived rather than deleted.
+      allow update: if isAdmin()
+                    && onlyChanges(['status', 'handledBy', 'updatedAt']);
+      allow create, delete: if false;
+    }
+
+    /* ------------------------------------------------ editorial pages */
+    /** Public copy for the marketing pages. Editors and above may change it. */
+    match /pages/{pageId} {
+      allow read: if true;
+      allow create, update: if isEditor();
+      allow delete: if false;
+    }
+
+    /* -------------------------------------------------------- settings */
+    /** Club name, contact details and social links are public by design. */
+    match /settings/{settingId} {
+      allow read: if true;
+      allow create, update: if isSuperadmin();
+      allow delete: if false;
+    }
+
+    /* ------------------------------------------------------ audit logs */
+    /**
+     * Append-only from trusted server code. No client may write here, so audit
+     * entries cannot be forged, altered or erased from the browser.
+     */
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    /* ----------------------------------------------------- rate limits */
+    /** Internal counters. Exposing them would defeat their purpose. */
+    match /rateLimits/{key} {
+      allow read, write: if false;
+    }
+
+    /* --------------------------------------------------------- default */
+    /** Anything not named above is denied. New collections start locked. */
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
