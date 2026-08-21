@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signIn } from "./helpers";
+import { signIn, uploadFromPage } from "./helpers";
 
 /**
  * Member journeys: sign in → dashboard → ride → RSVP, profile editing, and
@@ -25,24 +25,24 @@ test.describe("member", () => {
     const group = page.getByRole("radiogroup", { name: /rsvp/i });
     await expect(group).toBeVisible();
 
-    await group.getByRole("radio", { name: "Going" }).click();
+    await group.getByRole("radio", { name: "Going", exact: true }).click();
     await expect(page.getByText(/your response has been recorded/i)).toBeVisible({ timeout: 20_000 });
 
     // Reload: the choice persists as a single record.
     await page.reload();
     await expect(
-      page.getByRole("radiogroup", { name: /rsvp/i }).getByRole("radio", { name: "Going" }),
+      page.getByRole("radiogroup", { name: /rsvp/i }).getByRole("radio", { name: "Going", exact: true }),
     ).toHaveAttribute("aria-checked", "true");
 
     // Changing the answer updates the same record rather than adding another.
     await page
       .getByRole("radiogroup", { name: /rsvp/i })
-      .getByRole("radio", { name: "Maybe" })
+      .getByRole("radio", { name: "Maybe", exact: true })
       .click();
     await expect(page.getByText(/your response has been recorded/i)).toBeVisible({ timeout: 20_000 });
     await page.reload();
     await expect(
-      page.getByRole("radiogroup", { name: /rsvp/i }).getByRole("radio", { name: "Maybe" }),
+      page.getByRole("radiogroup", { name: /rsvp/i }).getByRole("radio", { name: "Maybe", exact: true }),
     ).toHaveAttribute("aria-checked", "true");
   });
 
@@ -77,16 +77,16 @@ test.describe("member", () => {
     await page.goto("/admin/members");
     await expect(page).toHaveURL(/\/forbidden/);
 
-    // Directly, not through the UI: the upload endpoint must refuse an area
-    // this member has no role for.
-    const upload = await page.request.post("/api/admin/upload", {
-      multipart: {
-        area: "documents",
-        file: { name: "x.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") },
-      },
-      failOnStatusCode: false,
+    // Bypassing the UI entirely: the endpoint must refuse an area this
+    // member's role does not reach, even with a valid session.
+    const upload = await uploadFromPage(page, {
+      area: "documents",
+      fileName: "x.pdf",
+      mimeType: "application/pdf",
+      bytes: [0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34],
     });
-    expect(upload.status()).toBe(403);
+    expect(upload.status).toBe(403);
+    expect(upload.body).toMatch(/cannot upload documents/i);
   });
 
   test("can read the directory and announcements", async ({ page }) => {

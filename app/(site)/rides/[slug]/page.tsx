@@ -14,12 +14,6 @@ import { getSessionUser } from "@/lib/auth/session";
 import { isActiveMember } from "@/lib/auth/roles";
 import { formatDistance, formatIsoDate, formatTime, siteUrl, truncate } from "@/lib/utils";
 
-/**
- * Rendered per request: the page shows a member's own RSVP, so it reads the
- * session cookie and must not be cached across visitors.
- */
-export const dynamic = "force-dynamic";
-
 export async function generateMetadata({
   params,
 }: {

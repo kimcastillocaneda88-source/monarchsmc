@@ -14,8 +14,6 @@ import { listPublishedNews } from "@/lib/data/news";
 import { HOME_SECTIONS } from "@/lib/content/defaults";
 import { siteUrl } from "@/lib/utils";
 
-export const revalidate = 300;
-
 export const metadata: Metadata = {
   // `absolute` bypasses the root layout's "%s · MONARCHS MC" template, which
   // would otherwise brand the homepage twice.

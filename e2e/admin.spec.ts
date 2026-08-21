@@ -14,9 +14,9 @@ test.describe("admin", () => {
     await expect(page.getByText(/demo applicant/i).first()).toBeVisible();
 
     await page.getByRole("link", { name: /^review$/i }).first().click();
-    await expect(page.getByLabel(/^status$/i)).toBeVisible();
+    await expect(page.getByLabel(/^status/i)).toBeVisible();
 
-    await page.getByLabel(/^status$/i).selectOption("reviewing");
+    await page.getByLabel(/^status/i).selectOption("reviewing");
     await page.getByRole("button", { name: /save review/i }).click();
     await expect(page.getByText(/application updated/i)).toBeVisible({ timeout: 20_000 });
   });
@@ -36,7 +36,7 @@ test.describe("admin", () => {
     await page.getByLabel(/meeting point/i).fill("E2E meeting point");
     await page.getByLabel(/^destination/i).fill("E2E destination");
     await page.getByLabel(/^visibility/i).selectOption("public");
-    await page.getByLabel(/^status$/i).selectOption("upcoming");
+    await page.getByLabel(/^status/i).selectOption("upcoming");
     await page.getByLabel(/published/i).check();
 
     await page.getByRole("button", { name: /create ride/i }).click();

@@ -7,15 +7,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Eyebrow } from "@/components/ui/Typography";
 import { ButtonLink } from "@/components/ui/Button";
 import { renderMarkdown } from "@/lib/markdown";
-import { getPublicEventBySlug, listPublicEventSlugs } from "@/lib/data/events";
+import { getPublicEventBySlug } from "@/lib/data/events";
 import { formatIsoDate, formatTime, siteUrl, truncate } from "@/lib/utils";
-
-export const revalidate = 300;
-
-export async function generateStaticParams() {
-  const slugs = await listPublicEventSlugs(50);
-  return slugs.map(({ slug }) => ({ slug }));
-}
 
 export async function generateMetadata({
   params,

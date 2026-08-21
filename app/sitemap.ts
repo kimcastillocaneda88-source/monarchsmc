@@ -5,6 +5,12 @@ import { listPublishedNewsSlugs } from "@/lib/data/news";
 import { siteUrl } from "@/lib/utils";
 
 /**
+ * Rebuilt hourly rather than baked into the deployment, so rides, events and
+ * articles published after the last deploy still appear.
+ */
+export const revalidate = 3600;
+
+/**
  * Public routes only.
  *
  * Member and admin routes, the auth pages and the API are deliberately absent —

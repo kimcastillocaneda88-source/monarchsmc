@@ -5,15 +5,8 @@ import { Container, Section } from "@/components/site/PageHero";
 import { SmartImage } from "@/components/ui/SmartImage";
 import { Eyebrow } from "@/components/ui/Typography";
 import { renderMarkdown } from "@/lib/markdown";
-import { getPublishedArticleBySlug, listPublishedNewsSlugs } from "@/lib/data/news";
+import { getPublishedArticleBySlug } from "@/lib/data/news";
 import { formatMillis, readingTimeMinutes, siteUrl, truncate } from "@/lib/utils";
-
-export const revalidate = 300;
-
-export async function generateStaticParams() {
-  const slugs = await listPublishedNewsSlugs(50);
-  return slugs.map(({ slug }) => ({ slug }));
-}
 
 export async function generateMetadata({
   params,

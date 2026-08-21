@@ -30,3 +30,27 @@ export async function signOut(page: Page): Promise<void> {
 export function unique(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
+
+/**
+ * Posts to the upload endpoint from inside the page.
+ *
+ * Deliberately not Playwright's `page.request`: that runs in a separate
+ * context which does not carry the browser's session cookie, so it can only
+ * ever prove the unauthenticated case. Running `fetch` in the page is both
+ * accurate and a truer simulation of someone bypassing the UI.
+ */
+export async function uploadFromPage(
+  page: Page,
+  options: { area: string; fileName: string; mimeType: string; bytes: number[] },
+): Promise<{ status: number; body: string }> {
+  return page.evaluate(async (opts) => {
+    const form = new FormData();
+    form.set("area", opts.area);
+    form.set(
+      "file",
+      new File([new Uint8Array(opts.bytes)], opts.fileName, { type: opts.mimeType }),
+    );
+    const response = await fetch("/api/admin/upload", { method: "POST", body: form });
+    return { status: response.status, body: await response.text() };
+  }, options);
+}

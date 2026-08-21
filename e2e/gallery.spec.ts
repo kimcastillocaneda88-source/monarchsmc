@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signIn, unique } from "./helpers";
+import { signIn, unique, uploadFromPage } from "./helpers";
 
 /** Editor uploads a gallery image → approves it → it appears in the public gallery. */
 test.describe("gallery", () => {
@@ -14,14 +14,16 @@ test.describe("gallery", () => {
     await signIn(page, "editor");
     await page.goto("/admin/gallery");
 
-    await page.getByLabel(/^photograph$/i).setInputFiles({
+    await page.getByLabel(/^photograph/i).setInputFiles({
       name: "e2e.jpg",
       mimeType: "image/jpeg",
       buffer: JPEG,
     });
 
     // Wait for the upload to report a stored path before saving metadata.
-    await expect(page.getByRole("button", { name: /remove/i })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("button", { name: /^remove$/i }).first()).toBeVisible({
+      timeout: 30_000,
+    });
 
     await page.getByLabel(/^title/i).fill(title);
     await page.getByLabel(/image description/i).fill("A photograph uploaded by the test suite");
@@ -40,22 +42,17 @@ test.describe("gallery", () => {
   test("rejects a file that is not really an image", async ({ page }) => {
     await signIn(page, "editor");
 
-    // A shell script renamed to .jpg with an image MIME type — the server
-    // sniffs the real bytes and refuses it.
-    const response = await page.request.post("/api/admin/upload", {
-      multipart: {
-        area: "gallery",
-        file: {
-          name: "payload.jpg",
-          mimeType: "image/jpeg",
-          buffer: Buffer.from("#!/bin/sh\necho pwned\n"),
-        },
-      },
-      failOnStatusCode: false,
+    // A shell script renamed to .jpg and declared as image/jpeg. The filename
+    // and the declared MIME type both say "image"; the leading bytes do not,
+    // and the server believes the bytes.
+    const response = await uploadFromPage(page, {
+      area: "gallery",
+      fileName: "payload.jpg",
+      mimeType: "image/jpeg",
+      bytes: Array.from(new TextEncoder().encode("#!/bin/sh\necho pwned\n")),
     });
 
-    expect(response.status()).toBe(415);
-    const body = (await response.json()) as { message?: string };
-    expect(body.message).toMatch(/not a supported image/i);
+    expect(response.status).toBe(415);
+    expect(response.body).toMatch(/not a supported image/i);
   });
 });
