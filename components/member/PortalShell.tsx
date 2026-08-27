@@ -28,7 +28,7 @@ export function PortalShell({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-dvh flex-col bg-ink">
+    <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-50 border-b border-ash bg-ink/95 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between gap-4 px-5 sm:px-8">
           <div className="flex min-w-0 items-center gap-4">

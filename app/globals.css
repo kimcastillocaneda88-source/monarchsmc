@@ -67,14 +67,24 @@
     box-sizing: border-box;
   }
 
+  /*
+     The page black lives on <html>, not <body>.
+
+     The club watermark is a fixed layer behind the content, and an element can
+     only be painted behind <body> if <body> itself is transparent — otherwise
+     body's own background covers it. Putting the colour here also means the
+     overscroll area past the top or bottom of the page stays black instead of
+     flashing white.
+  */
   html {
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
+    background-color: var(--color-ink);
   }
 
   body {
     margin: 0;
-    background-color: var(--color-ink);
+    background-color: transparent;
     color: var(--color-bone);
     font-family: var(--font-sans);
     font-size: 16px;
@@ -184,6 +194,31 @@
     );
     height: 1px;
     border: 0;
+  }
+
+  /*
+     The club patch, held as a fixed watermark behind the whole site.
+
+     Deliberately faint. At full strength a logo this detailed sits directly
+     under body copy and destroys the contrast the rest of the palette works to
+     protect, so it is knocked back to a few percent — present as texture and
+     recognisable up close, never competing with text. Tune it in one place by
+     overriding --brand-watermark-opacity.
+
+     `fixed` keeps it still while the page scrolls, so it reads as a mark on the
+     page rather than a picture in the content. If the image file is absent the
+     rule simply resolves to nothing and the site renders on flat black.
+  */
+  .u-brand-watermark {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: url("/brand/monarchs-logo.png");
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: min(70vw, 70vh) auto;
+    opacity: var(--brand-watermark-opacity, 0.06);
   }
 
   /* Very low-amplitude film grain. Adds material texture to flat black

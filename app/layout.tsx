@@ -76,10 +76,23 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${oswald.variable}`} suppressHydrationWarning>
-      <body className="min-h-dvh bg-ink font-sans text-bone antialiased">
-        <SkipLink />
-        <PageViewTracker />
-        {children}
+      <body className="min-h-dvh font-sans text-bone antialiased">
+        {/*
+          The club patch, behind everything. Decorative, so it is hidden from
+          assistive technology and cannot intercept a click.
+        */}
+        <div className="u-brand-watermark" aria-hidden="true" />
+
+        {/*
+          Content sits in its own stacking layer above the watermark. Without
+          this the watermark — being positioned — would paint over the
+          unpositioned blocks that make up most of the page.
+        */}
+        <div className="relative z-1">
+          <SkipLink />
+          <PageViewTracker />
+          {children}
+        </div>
       </body>
     </html>
   );

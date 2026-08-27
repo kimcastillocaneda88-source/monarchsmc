@@ -21,7 +21,7 @@ export function Intro({
   const paragraphs = body.split(/\n{2,}/).filter(Boolean);
 
   return (
-    <section className="relative bg-ink py-20 sm:py-24 lg:py-32">
+    <section className="relative py-20 sm:py-24 lg:py-32">
       <div className="mx-auto max-w-[1600px] px-5 sm:px-8 lg:px-12">
         <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-16">
           <Reveal className="lg:col-span-6">

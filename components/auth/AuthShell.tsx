@@ -19,7 +19,7 @@ export function AuthShell({
   children: ReactNode;
 }) {
   return (
-    <section className="u-grain relative isolate flex min-h-[calc(100dvh-5rem)] items-center border-b border-ash bg-ink py-16 sm:py-20">
+    <section className="u-grain relative isolate flex min-h-[calc(100dvh-5rem)] items-center border-b border-ash py-16 sm:py-20">
       <div className="mx-auto w-full max-w-[1600px] px-5 sm:px-8 lg:px-12">
         <div className="grid gap-14 lg:grid-cols-12 lg:gap-20">
           <div className="lg:col-span-6 lg:pt-6">

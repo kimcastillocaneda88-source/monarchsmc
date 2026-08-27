@@ -13,7 +13,7 @@ export function FeaturedGallery({ items }: { items: GalleryItem[] }) {
   const [lead, ...rest] = items;
 
   return (
-    <section className="border-t border-ash bg-ink py-20 sm:py-24 lg:py-32">
+    <section className="border-t border-ash py-20 sm:py-24 lg:py-32">
       <div className="mx-auto max-w-[1600px] px-5 sm:px-8 lg:px-12">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-3xl">

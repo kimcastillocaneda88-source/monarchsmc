@@ -5,7 +5,7 @@ import { PRINCIPLES } from "@/lib/content/defaults";
 /** The four principles. A hairline grid rather than a row of rounded cards. */
 export function Principles() {
   return (
-    <section className="border-t border-ash bg-ink py-20 sm:py-24 lg:py-32">
+    <section className="border-t border-ash py-20 sm:py-24 lg:py-32">
       <div className="mx-auto max-w-[1600px] px-5 sm:px-8 lg:px-12">
         <div className="max-w-3xl">
           <Eyebrow index="02">What we stand on</Eyebrow>

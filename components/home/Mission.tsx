@@ -6,7 +6,7 @@ export function Mission({ title, body }: { title: string; body: string }) {
   const paragraphs = body.split(/\n{2,}/).filter(Boolean);
 
   return (
-    <section className="border-t border-ash bg-ink py-20 sm:py-24 lg:py-32">
+    <section className="border-t border-ash py-20 sm:py-24 lg:py-32">
       <div className="mx-auto max-w-[1600px] px-5 sm:px-8 lg:px-12">
         <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
           <Reveal className="lg:col-span-5">
