@@ -225,21 +225,29 @@ working without streaming half a gigabyte through a function.
 
 ## Typography
 
-The site is set in **Ironhorse**. The font files are deliberately **not
-committed**: Ironhorse is a licensed display face, unavailable from Google Fonts
-or any other CDN, so redistributing it here would breach its licence.
+The site is set in **Ironhorse**, by the Fontry. **No font file is committed,
+and the site serves none** — that is a licensing requirement.
 
-Drop `ironhorse.woff2` into `public/fonts/` and everything picks it up with no
-further change — see [`public/fonts/README.md`](public/fonts/README.md). Until
-then the `@font-face` rule tries a locally installed copy first and otherwise
-never matches, so the stacks fall through to **Oswald**, the closest widely
-available condensed industrial face. A missing font file never breaks the build
-and never leaves the site unstyled.
+The freely circulating files are the **Non Commercial Version** (`NCV`) under a
+personal-use EULA whose clause 3 forbids making the font accessible to third
+parties — precisely what hosting a webfont does — and whose clause 5 forbids
+derivative works, which a TTF-to-WOFF2 conversion is. A web licence from the
+Fontry (the_fontry@yahoo.com, http://thefontry.com/ironfamily) lifts both.
+
+Until then the `@font-face` rule in [`app/globals.css`](app/globals.css) lists
+**only `local()` sources**. This is licence-clean: the site transmits nothing,
+and the face is used only where a visitor has installed it themselves, which
+their personal-use licence permits. Everyone else falls through to **Oswald**,
+the closest widely available condensed industrial face. The `local()` names are
+the fonts' real internal family names (`FTY IRONHORSE NCV`) — a plain
+`local("Ironhorse")` matches nothing.
+
+[`public/fonts/README.md`](public/fonts/README.md) has the full licence position
+and the steps to wire up a licensed file.
 
 Ironhorse is applied site-wide, body copy included, which is what gives the site
 its character but costs some legibility at small sizes. To keep it for headings
-only, remove `"Ironhorse", ` from `--font-sans` in
-[`app/globals.css`](app/globals.css).
+only, remove `"Ironhorse", ` from `--font-sans`.
 
 ---
 

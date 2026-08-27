@@ -8,25 +8,34 @@
    ------------------------------------------------------------------ */
 
 /*
-   Ironhorse is a licensed display face, so it is not redistributed with this
-   repository and is not served from any font CDN. Drop the licensed files into
-   public/fonts/ (see public/fonts/README.md) and every rule below picks them up
-   with no further change.
+   Ironhorse, resolved from the visitor's own machine only.
 
-   `local()` comes first so a copy already installed on the visitor's machine is
-   used without a download. When neither the local copy nor the hosted file is
-   present the @font-face simply never matches, and the stacks below fall
-   through to Oswald — a condensed industrial face chosen because it is the
-   closest widely available stand-in. Nothing breaks, at build time or in the
-   browser, when the font file is absent.
+   The copies circulating for this face are IRONHORSE NCV — the Non Commercial
+   Version — whose EULA blocks serving it as a webfont on two counts: it forbids
+   making the font accessible to third parties (which is exactly what hosting a
+   .woff2 does, since every visitor's browser downloads it), and it forbids
+   derivative works, which a TTF-to-WOFF2 conversion is. A web licence from the
+   Fontry lifts both; until the club holds one, no font file is committed here
+   and none is served. See public/fonts/README.md.
+
+   `local()` is therefore the only source listed, and it is not a workaround —
+   it is the licence-clean path. Nothing is transmitted: the face is used only
+   where the visitor has already installed it themselves, which the personal-use
+   licence permits them to do. Anyone without it falls through to Oswald, a
+   condensed industrial face chosen as the closest widely available stand-in.
+
+   The names below are the fonts' real internal family names, read from the
+   TTFs. "Ironhorse" alone never matches anything, so a member who had dutifully
+   installed the font would still have seen the fallback.
 */
 @font-face {
   font-family: "Ironhorse";
   src:
-    local("Ironhorse"),
-    local("IronHorse"),
-    url("/fonts/ironhorse.woff2") format("woff2"),
-    url("/fonts/ironhorse.woff") format("woff");
+    local("FTY IRONHORSE NCV"),
+    local("FTYIRONHORSENCV"),
+    /* The commercial release drops the NCV suffix. */
+    local("FTY IRONHORSE"),
+    local("Ironhorse");
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;

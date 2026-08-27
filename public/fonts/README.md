@@ -1,40 +1,71 @@
 # Ironhorse
 
-The site's typography is set in **Ironhorse**. The font files themselves are
-deliberately **not committed to this repository**: Ironhorse is a licensed
-display face and is not available from Google Fonts or any other font CDN, so
-redistributing it here would breach its licence.
+The site's typography is set in **Ironhorse**, by the Fontry. **No font file is
+committed here, and the site does not serve one.** That is a licensing
+requirement, not an oversight — see below.
 
-## Installing the font
+## Licence status: not cleared for web use
 
-1. Obtain Ironhorse under a licence that permits web embedding (a webfont or
-   desktop licence with `@font-face` rights).
-2. Convert it to WOFF2 (and optionally WOFF for older browsers).
-3. Drop the files into this directory using exactly these names:
+The freely circulating files are `FTY_IRONHORSE_NCV.ttf` — **NCV = Non
+Commercial Version** — and they ship with a personal-use EULA. Two of its
+clauses block serving the font from this website:
 
-   ```
-   public/fonts/ironhorse.woff2
-   public/fonts/ironhorse.woff     # optional
-   ```
+> **3. Third parties** — "You may not provide the font or make it accessible to
+> any third parties."
 
-4. Redeploy. Nothing else needs changing — the `@font-face` rule at the top of
-   `app/globals.css` already points at these paths.
+Hosting a webfont does exactly this. Every visitor's browser downloads the font
+file from the server, which makes it accessible to an unlimited number of third
+parties.
 
-## What happens until then
+> **5. Modifications** — "You may not modify, adapt, translate, reverse
+> engineer, decompile, disassemble, or create derivative works based on the
+> licensed font itself without Foundry's prior written consent."
 
-The `@font-face` rule lists `local("Ironhorse")` first, so a copy already
-installed on a visitor's machine is used with no download at all. If neither a
-local copy nor a hosted file is found, the rule simply never matches and the
-font stacks in `app/globals.css` fall through to **Oswald** — a condensed
+Converting the TTF to WOFF2 — which is what makes a font usable on the web — is
+a derivative work of the font.
+
+Clause 1 also limits permitted web use to non-commercial work, giving "personal
+web sites" as the example. A club's public site is at best a grey area even
+before the two clauses above.
+
+## Getting it cleared
+
+The Fontry sells a commercial/web licence. The EULA gives the contact directly:
+
+- Email: the_fontry@yahoo.com
+- Web: http://thefontry.com/ironfamily
+
+Once the club holds a web licence, wiring it up is a small job: convert the
+licensed TTF to WOFF2, save it as `public/fonts/ironhorse.woff2`, and add the
+`url(...)` sources back to the `@font-face` rule in `app/globals.css` alongside
+the existing `local()` entries. Nothing else changes.
+
+## What happens in the meantime
+
+The `@font-face` rule lists **only `local()` sources**. This is licence-clean:
+nothing is transmitted by the site, and the face is used only on machines where
+the visitor has already installed it themselves — which the personal-use licence
+permits them to do. Everyone else falls through to **Oswald**, a condensed
 industrial face chosen as the closest widely available stand-in.
 
-This means a missing font file never breaks the build and never leaves the site
-unstyled. It just renders in the fallback until the licensed file is added.
+So club members who install the font on their own computer see the site in
+Ironhorse; the site itself never distributes it.
+
+The names in the rule are the fonts' real internal family names, read out of the
+TTFs:
+
+| File | Family name |
+| --- | --- |
+| `FTY_IRONHORSE_NCV.ttf` | `FTY IRONHORSE NCV` |
+| `FTY_IRONRIDER_NCV.ttf` | `FTY IRONRIDER NCV` |
+
+This matters: a plain `local("Ironhorse")` matches nothing, so before this was
+corrected even a member who had installed the font would still have seen the
+fallback.
 
 ## Restricting Ironhorse to headings
 
-Ironhorse is a display face. It is currently applied site-wide, including body
-copy, which is what gives the site its character but costs some legibility at
-small sizes. To keep it for headings only, remove `"Ironhorse", ` from the
-`--font-sans` declaration in `app/globals.css` and leave `--font-display`
-as it is.
+Ironhorse is a display face. It is applied site-wide, including body copy, which
+is what gives the site its character but costs some legibility at small sizes.
+To keep it for headings only, remove `"Ironhorse", ` from the `--font-sans`
+declaration in `app/globals.css` and leave `--font-display` as it is.
