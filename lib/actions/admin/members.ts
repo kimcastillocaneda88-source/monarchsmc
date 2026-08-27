@@ -17,6 +17,7 @@ import {
 } from "@/lib/validation/schemas";
 import { APPLICATIONS } from "@/lib/data/applications";
 import { MEMBERS, MEMBER_ADMIN, MEMBER_CONTACT, USERS } from "@/lib/data/members";
+import { ensureUsername } from "@/lib/data/usernames";
 import type { MembershipStatus } from "@/types";
 import type { FormState } from "../form-state";
 
@@ -60,6 +61,7 @@ export async function setMembershipStatus(
     if (!snap.exists) return err("That member no longer exists.");
 
     const role = String(snap.data()?.role ?? "member");
+    const uploadAccess = snap.data()?.uploadAccess === true;
 
     // A club manager must not be able to suspend a superadmin.
     if (role === "superadmin" && actor.role !== "superadmin") {
@@ -98,7 +100,7 @@ export async function setMembershipStatus(
     );
     await batch.commit();
 
-    await syncCustomClaims(uid, role as Principal["role"], status);
+    await syncCustomClaims(uid, role as Principal["role"], status, uploadAccess);
 
     // Suspension and deactivation must take effect now, not when the token
     // happens to expire, so existing sessions are revoked.
@@ -221,6 +223,7 @@ export async function changeRole(_prev: FormState, formData: FormData): Promise<
     }
 
     const membershipStatus = String(snap.data()?.membershipStatus ?? "pending") as MembershipStatus;
+    const uploadAccess = snap.data()?.uploadAccess === true;
 
     const batch = db().batch();
     batch.update(userRef, { role, updatedAt: FieldValue.serverTimestamp() });
@@ -231,7 +234,7 @@ export async function changeRole(_prev: FormState, formData: FormData): Promise<
     );
     await batch.commit();
 
-    await syncCustomClaims(uid, role, membershipStatus);
+    await syncCustomClaims(uid, role, membershipStatus, uploadAccess);
     // Force a fresh token so the new role is in effect immediately.
     await adminAuth().revokeRefreshTokens(uid);
 
@@ -325,13 +328,19 @@ export async function createAccountFromApplication(applicationId: string): Promi
       uid = created.uid;
     }
 
+    // An account reached this way never chose a sign-in name, so mint one now
+    // rather than leave the applicant unable to sign in by username.
+    const username = await ensureUsername(uid, email, displayName);
+
     const batch = db().batch();
     batch.set(
       db().collection(USERS).doc(uid),
       {
         email,
+        username,
         role: "member",
         membershipStatus: "pending",
+        uploadAccess: false,
         applicationId,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
@@ -380,14 +389,18 @@ export async function createAccountFromApplication(applicationId: string): Promi
     });
     await batch.commit();
 
-    await syncCustomClaims(uid, "member", "pending");
-    await recordAudit(actor, "application.accept", "application", applicationId, { uid, email });
+    await syncCustomClaims(uid, "member", "pending", false);
+    await recordAudit(actor, "application.accept", "application", applicationId, {
+      uid,
+      email,
+      username,
+    });
 
     revalidatePath("/admin/applications");
     revalidatePath("/admin/members");
 
     return ok(
-      "Account created as a pending member. Send them a password reset link so they can set a password, then activate the membership.",
+      `Account created as a pending member with the username "${username}". Send them a password reset link so they can set a password, then approve their access.`,
     );
   } catch (error) {
     return err(toUserMessage(error, "We could not create that account."));

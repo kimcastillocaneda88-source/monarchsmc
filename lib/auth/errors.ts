@@ -44,11 +44,11 @@ export class ValidationError extends AppError {
 }
 
 const FRIENDLY_AUTH_MESSAGES: Record<string, string> = {
-  "auth/invalid-credential": "That email address and password combination was not recognised.",
+  "auth/invalid-credential": "That username and password combination was not recognised.",
   "auth/invalid-email": "Enter a valid email address.",
-  "auth/user-disabled": "This account has been disabled. Contact a club officer.",
-  "auth/user-not-found": "That email address and password combination was not recognised.",
-  "auth/wrong-password": "That email address and password combination was not recognised.",
+  "auth/user-disabled": "Access for this account has been revoked. Contact a club officer.",
+  "auth/user-not-found": "That username and password combination was not recognised.",
+  "auth/wrong-password": "That username and password combination was not recognised.",
   "auth/too-many-requests": "Too many attempts. Please wait a few minutes and try again.",
   "auth/network-request-failed": "We could not reach the server. Check your connection and try again.",
   "auth/weak-password": "Choose a password of at least 12 characters.",

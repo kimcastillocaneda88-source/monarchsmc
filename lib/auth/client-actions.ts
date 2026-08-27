@@ -29,11 +29,65 @@ async function exchangeForSessionCookie(idToken: string): Promise<void> {
   }
 }
 
-export async function signIn(email: string, password: string): Promise<void> {
+/**
+ * Resolves a sign-in username to the address Firebase is keyed on.
+ *
+ * The endpoint answers for unknown usernames too, with an address that cannot
+ * exist, so this never tells the caller whether an account is there. The
+ * sign-in that follows fails identically either way.
+ */
+async function emailForUsername(username: string): Promise<string> {
+  const response = await fetch("/api/auth/username", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username }),
+  });
+  const body = (await response.json().catch(() => ({}))) as { email?: string; message?: string };
+  if (!response.ok || !body.email) {
+    throw new Error(body.message ?? "We could not sign you in. Please try again.");
+  }
+  return body.email;
+}
+
+export async function signIn(username: string, password: string): Promise<void> {
+  const email = await emailForUsername(username);
   const auth = getFirebaseAuth();
   const credential = await signInWithEmailAndPassword(auth, email, password);
   const idToken = await credential.user.getIdToken(true);
   await exchangeForSessionCookie(idToken);
+}
+
+export interface AccessRequest {
+  username: string;
+  displayName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
+
+/**
+ * Submits a request for access. Creating the account is the server's job — the
+ * browser is never allowed to mint one, because that would decide membership
+ * without an officer in the loop.
+ */
+export async function requestAccess(
+  input: AccessRequest,
+): Promise<{ message: string; fieldErrors?: Record<string, string> }> {
+  const response = await fetch("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const body = (await response.json().catch(() => ({}))) as {
+    message?: string;
+    fieldErrors?: Record<string, string>;
+  };
+  if (!response.ok) {
+    const error = new Error(body.message ?? "We could not send that request. Please try again.");
+    (error as Error & { fieldErrors?: Record<string, string> }).fieldErrors = body.fieldErrors;
+    throw error;
+  }
+  return { message: body.message ?? "Your request has been sent." };
 }
 
 export async function signOut(): Promise<void> {

@@ -4,6 +4,7 @@ import { adminAuth, adminDb, isAdminConfigured } from "@/lib/firebase/admin";
 import { SESSION_COOKIE, SESSION_MAX_AGE_MS, syncCustomClaims } from "@/lib/auth/session";
 import { consumeRateLimit, subjectFromRequest } from "@/lib/data/rate-limit";
 import { MEMBERS, USERS } from "@/lib/data/members";
+import { ensureUsername, updateReservationEmail } from "@/lib/data/usernames";
 import type { MembershipStatus, Role } from "@/types";
 import { MEMBERSHIP_STATUSES, ROLES } from "@/types";
 
@@ -80,6 +81,8 @@ export async function POST(request: Request) {
 
     let role: Role = "member";
     let membershipStatus: MembershipStatus = "pending";
+    let uploadAccess = false;
+    let username = "";
 
     if (snap.exists) {
       const data = snap.data() ?? {};
@@ -87,15 +90,31 @@ export async function POST(request: Request) {
       membershipStatus = (MEMBERSHIP_STATUSES as readonly string[]).includes(String(data.membershipStatus))
         ? (data.membershipStatus as MembershipStatus)
         : "pending";
-      await userRef.update({ lastLoginAt: FieldValue.serverTimestamp(), email });
+      uploadAccess = data.uploadAccess === true;
+      username = typeof data.username === "string" ? data.username : "";
+
+      // An account can predate usernames, or have been created by an officer
+      // accepting an application. Mint one now rather than leave it unable to
+      // sign in by name next time.
+      if (!username) {
+        username = await ensureUsername(decoded.uid, email, decoded.name ?? null);
+        await userRef.update({ username, lastLoginAt: FieldValue.serverTimestamp(), email });
+      } else {
+        await userRef.update({ lastLoginAt: FieldValue.serverTimestamp(), email });
+        // Keep the reservation's cached address in step with the account's.
+        await updateReservationEmail(username, email);
+      }
     } else {
       // First sign-in for an account created by an administrator. The record is
       // created as a pending member with no privileges — creating an auth user
       // never grants club membership.
+      username = await ensureUsername(decoded.uid, email, decoded.name ?? null);
       await userRef.set({
         email,
+        username,
         role: "member",
         membershipStatus: "pending",
+        uploadAccess: false,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         lastLoginAt: FieldValue.serverTimestamp(),
@@ -129,13 +148,13 @@ export async function POST(request: Request) {
 
     // Security Rules read custom claims, so they must match the authoritative
     // users/{uid} record before the session becomes usable.
-    await syncCustomClaims(decoded.uid, role, membershipStatus);
+    await syncCustomClaims(decoded.uid, role, membershipStatus, uploadAccess);
 
     const sessionCookie = await adminAuth().createSessionCookie(idToken, {
       expiresIn: SESSION_MAX_AGE_MS,
     });
 
-    const response = json(200, { ok: true, membershipStatus, role });
+    const response = json(200, { ok: true, membershipStatus, role, uploadAccess });
     response.cookies.set({
       name: SESSION_COOKIE,
       value: sessionCookie,

@@ -54,6 +54,41 @@ const IMAGE_SIGNATURES: Array<{ mime: string; extension: string; test: (b: Uint8
   },
 ];
 
+/**
+ * Video container signatures.
+ *
+ * MP4 and QuickTime are both ISO base media files: bytes 4..7 are "ftyp" and
+ * the brand that follows says which. WebM is a Matroska container and starts
+ * with the EBML magic number.
+ */
+const VIDEO_SIGNATURES: Array<{ mime: string; extension: string; test: (b: Uint8Array) => boolean }> = [
+  {
+    mime: "video/webm",
+    extension: "webm",
+    test: (b) => b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3,
+  },
+  {
+    mime: "video/quicktime",
+    extension: "mov",
+    test: (b) => isFtyp(b) && brandOf(b) === "qt  ",
+  },
+  {
+    mime: "video/mp4",
+    extension: "mp4",
+    // Everything else carrying an ftyp box is treated as MP4; the common
+    // brands (isom, mp42, avc1, iso5, dash) are all MP4 in practice.
+    test: (b) => isFtyp(b),
+  },
+];
+
+function isFtyp(b: Uint8Array): boolean {
+  return b[4] === 0x66 && b[5] === 0x74 && b[6] === 0x79 && b[7] === 0x70;
+}
+
+function brandOf(b: Uint8Array): string {
+  return String.fromCharCode(b[8] ?? 0, b[9] ?? 0, b[10] ?? 0, b[11] ?? 0);
+}
+
 const DOCUMENT_SIGNATURES: Array<{ mime: string; extension: string; test: (b: Uint8Array) => boolean }> = [
   {
     mime: "application/pdf",
@@ -77,6 +112,15 @@ const OOXML_TYPES: Record<string, string> = {
 export function detectImage(bytes: Uint8Array): FileKind | null {
   if (bytes.length < 16) return null;
   const match = IMAGE_SIGNATURES.find((signature) => signature.test(bytes));
+  return match ? { mime: match.mime, extension: match.extension } : null;
+}
+
+export function detectVideo(bytes: Uint8Array): FileKind | null {
+  if (bytes.length < 16) return null;
+  // AVIF is also an ftyp container, so it must be excluded before the
+  // catch-all MP4 rule claims it as video.
+  if (detectImage(bytes)) return null;
+  const match = VIDEO_SIGNATURES.find((signature) => signature.test(bytes));
   return match ? { mime: match.mime, extension: match.extension } : null;
 }
 

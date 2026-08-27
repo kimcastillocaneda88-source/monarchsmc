@@ -69,8 +69,12 @@ async function loadSession(): Promise<SessionUser | null> {
     return {
       uid: decoded.uid,
       email: typeof data.email === "string" ? data.email : (decoded.email ?? ""),
+      username: typeof data.username === "string" ? data.username : "",
       role,
       membershipStatus,
+      // Read from the record, never from the cookie, so a revoked grant takes
+      // effect on the very next request.
+      uploadAccess: data.uploadAccess === true,
       displayName: typeof data.displayName === "string" ? data.displayName : (decoded.name ?? null),
     };
   } catch {
@@ -92,10 +96,17 @@ export async function syncCustomClaims(
   uid: string,
   role: Role,
   membershipStatus: MembershipStatus,
+  uploadAccess: boolean,
 ): Promise<boolean> {
   const user = await adminAuth().getUser(uid);
   const current = user.customClaims ?? {};
-  if (current.role === role && current.membershipStatus === membershipStatus) return false;
-  await adminAuth().setCustomUserClaims(uid, { role, membershipStatus });
+  if (
+    current.role === role &&
+    current.membershipStatus === membershipStatus &&
+    current.uploadAccess === uploadAccess
+  ) {
+    return false;
+  }
+  await adminAuth().setCustomUserClaims(uid, { role, membershipStatus, uploadAccess });
   return true;
 }

@@ -8,6 +8,7 @@ import {
   canManageAdministrators,
   canManageClub,
   canManageContent,
+  canUploadMedia,
   hasRoleAtLeast,
   isActiveMember,
   type Principal,
@@ -53,6 +54,24 @@ export async function requireClubManager(): Promise<SessionUser> {
   return user;
 }
 
+/**
+ * Requires the administrator-granted permission to contribute media.
+ *
+ * Checked afresh on every request from users/{uid} rather than from the
+ * session cookie, so revoking the grant stops the next upload rather than the
+ * one after the token expires.
+ */
+export async function requireUploader(): Promise<SessionUser> {
+  const user = await requireSession();
+  if (!isActiveMember(user)) {
+    throw new ForbiddenError("Your membership is not active. Contact a club officer.");
+  }
+  if (!canUploadMedia(user as Principal)) {
+    throw new ForbiddenError("You have not been granted permission to upload.");
+  }
+  return user;
+}
+
 export async function requireSuperadmin(): Promise<SessionUser> {
   const user = await requireSession();
   if (!canManageAdministrators(user as Principal)) throw new ForbiddenError();
@@ -88,6 +107,12 @@ export async function requireAdminAreaPage(returnTo: string): Promise<SessionUse
 export async function requireClubManagerPage(returnTo: string): Promise<SessionUser> {
   const user = await requireSessionPage(returnTo);
   if (!canManageClub(user as Principal)) redirect("/forbidden");
+  return user;
+}
+
+export async function requireUploaderPage(returnTo: string): Promise<SessionUser> {
+  const user = await requireActiveMemberPage(returnTo);
+  if (!canUploadMedia(user as Principal)) redirect("/member/no-upload-access");
   return user;
 }
 

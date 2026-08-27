@@ -290,6 +290,36 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    /* -------------------------------------------------------- usernames */
+    /**
+     * The username-to-account map. Denied to clients in both directions.
+     *
+     * Reading it would list every sign-in name in the club and undo the care
+     * /api/auth/username takes not to reveal whether a username exists.
+     * Writing it would let somebody claim or hijack a name, since the document
+     * id *is* the uniqueness constraint.
+     */
+    match /usernames/{username} {
+      allow read, write: if false;
+    }
+
+    /* ------------------------------------------------------------- media */
+    /**
+     * The member media library. Items are read through /api/media/file/[id],
+     * which checks who is asking and hands back a short-lived signed URL, and
+     * written only by trusted server code after the stored object has been
+     * verified. A client that could write here could publish to the club
+     * without review.
+     */
+    match /media/{itemId} {
+      allow read, write: if false;
+    }
+
+    /** Upload tickets. Internal bookkeeping for uploads still in flight. */
+    match /mediaUploads/{uploadId} {
+      allow read, write: if false;
+    }
+
     /* ----------------------------------------------------- rate limits */
     /** Internal counters. Exposing them would defeat their purpose. */
     match /rateLimits/{key} {

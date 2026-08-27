@@ -19,6 +19,7 @@
     "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
+    "@vladmandic/face-api": "^1.7.15",
     "clsx": "^2.1.1",
     "firebase": "^12.18.0",
     "firebase-admin": "^13.10.0",

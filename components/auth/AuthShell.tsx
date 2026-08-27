@@ -8,11 +8,14 @@ export function AuthShell({
   eyebrow,
   title,
   lede,
+  note,
   children,
 }: {
   eyebrow: string;
   title: string;
   lede?: string;
+  /** Standing caveat rendered beside the form. */
+  note?: string;
   children: ReactNode;
 }) {
   return (
@@ -36,8 +39,8 @@ export function AuthShell({
             </div>
 
             <p className="mt-12 max-w-md border-l-2 border-gold/50 pl-5 text-sm leading-relaxed text-smoke">
-              The member area is for active members of MONARCHS MC. Accounts are created by club
-              officers — signing in is not the same as joining.
+              {note ??
+                "The member area is for approved members of MONARCHS MC. Every account is approved by a club officer before it works, and access can be withdrawn at any time."}
             </p>
           </div>
 

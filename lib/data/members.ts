@@ -27,8 +27,14 @@ export function mapUser(doc: QueryDocumentSnapshot): UserRecord {
   return {
     uid: doc.id,
     email: str(d.email),
+    username: str(d.username),
     role: oneOf<Role>(d.role, ROLES, "member"),
     membershipStatus: oneOf<MembershipStatus>(d.membershipStatus, MEMBERSHIP_STATUSES, "pending"),
+    // Absent means "not granted": an account created before this permission
+    // existed must not acquire it by default.
+    uploadAccess: bool(d.uploadAccess),
+    uploadAccessGrantedBy: nullableStr(d.uploadAccessGrantedBy),
+    uploadAccessGrantedAt: toMillis(d.uploadAccessGrantedAt),
     createdAt: requireMillis(d.createdAt),
     updatedAt: requireMillis(d.updatedAt),
     lastLoginAt: toMillis(d.lastLoginAt),

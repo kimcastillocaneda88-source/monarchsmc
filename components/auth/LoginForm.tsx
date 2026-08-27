@@ -29,7 +29,7 @@ export function LoginForm() {
 
     const data = new FormData(event.currentTarget);
     const parsed = loginSchema.safeParse({
-      email: data.get("email"),
+      username: data.get("username"),
       password: data.get("password"),
     });
 
@@ -40,7 +40,7 @@ export function LoginForm() {
 
     setBusy(true);
     try {
-      await signIn(parsed.data.email, parsed.data.password);
+      await signIn(parsed.data.username, parsed.data.password);
       track({ name: "login" });
       // The server decides where an account may go; safeNextPath only guards
       // against open redirects to another origin.
@@ -71,14 +71,15 @@ export function LoginForm() {
       ) : null}
 
       <TextInput
-        id="email"
-        label="Email"
-        type="email"
+        id="username"
+        label="Username"
+        type="text"
         required
-        autoComplete="email"
-        inputMode="email"
+        autoComplete="username"
+        autoCapitalize="none"
+        spellCheck={false}
         autoFocus
-        error={errors.email}
+        error={errors.username}
       />
 
       <TextInput
@@ -103,10 +104,10 @@ export function LoginForm() {
           Forgotten password
         </Link>
         <Link
-          href="/join"
+          href="/request-access"
           className="u-underline-grow font-display text-[0.625rem] tracking-[0.2em] text-gold uppercase"
         >
-          Apply to join →
+          Request access →
         </Link>
       </div>
     </form>

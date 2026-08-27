@@ -1,6 +1,8 @@
 import { z } from "zod";
 import {
   ANNOUNCEMENT_PRIORITIES,
+  FACE_BLUR_STATUSES,
+  MEDIA_KINDS,
   APPLICATION_STATUSES,
   CONTACT_CATEGORIES,
   DOCUMENT_CATEGORIES,
@@ -15,6 +17,7 @@ import {
   ROLES,
   RSVP_RESPONSES,
   VISIBILITIES,
+  type MediaKind,
 } from "@/types";
 
 /**
@@ -96,11 +99,69 @@ const optionalUrl = z
 
 /* ------------------------------------------------------------ auth forms */
 
+/**
+ * A sign-in name.
+ *
+ * Lowercased on the way in so that "RoadCaptain" and "roadcaptain" can never
+ * become two accounts, and restricted to an unambiguous character set so a
+ * username is always safe to use as a Firestore document id in the
+ * usernames/{username} reservation collection.
+ */
+export const usernameSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(3, "Use at least 3 characters.")
+  .max(24, "Use at most 24 characters.")
+  .regex(
+    /^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/,
+    "Use letters, numbers, dots, hyphens and underscores. Start and end with a letter or number.",
+  );
+
+/**
+ * Derives a username candidate from arbitrary text — a display name, the local
+ * part of an email address — normalising it into something
+ * {@link usernameSchema} will accept. Returns an empty string when nothing
+ * usable survives, which the caller must handle rather than submit.
+ *
+ * Capped well below the 24-character limit so a uniqueness suffix still fits.
+ */
+export function usernameCandidateFrom(source: string): string {
+  return source
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "")
+    .slice(0, 20);
+}
+
 export const loginSchema = z.object({
-  email: emailSchema,
+  username: usernameSchema,
   password: z.string().min(1, "Enter your password."),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
+
+/**
+ * A request for access to the club site.
+ *
+ * The applicant chooses their own username and password; an administrator
+ * then approves or refuses the account. An email address is still required —
+ * Firebase Authentication is keyed on it, and it is the only way to send a
+ * password reset — but it is never what a member types to sign in.
+ */
+export const accessRequestSchema = z
+  .object({
+    username: usernameSchema,
+    displayName: trimmed(2, 80),
+    email: emailSchema,
+    password: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((v) => v.password === v.confirmPassword, {
+    message: "Those passwords do not match.",
+    path: ["confirmPassword"],
+  });
+export type AccessRequestInput = z.infer<typeof accessRequestSchema>;
 
 export const forgotPasswordSchema = z.object({ email: emailSchema });
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
@@ -375,6 +436,49 @@ export const ALLOWED_DOCUMENT_TYPES = Object.freeze([
   "text/plain",
 ]);
 export const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024; // 25 MB
+
+export const ALLOWED_VIDEO_TYPES = Object.freeze([
+  "video/webm",
+  "video/mp4",
+  "video/quicktime",
+]);
+/**
+ * Videos are uploaded straight to Cloud Storage with a signed URL rather than
+ * through a route handler, so this ceiling is not constrained by the 4.5 MB
+ * request body limit that applies to serverless functions.
+ */
+export const MAX_VIDEO_BYTES = 512 * 1024 * 1024; // 512 MB
+
+/** The ceiling for a given kind, used by both the browser and the server. */
+export function maxBytesForKind(kind: MediaKind): number {
+  if (kind === "video") return MAX_VIDEO_BYTES;
+  if (kind === "file") return MAX_DOCUMENT_BYTES;
+  return MAX_IMAGE_BYTES;
+}
+
+/** What the browser asks for before it may upload anything. */
+export const mediaUploadTicketSchema = z.object({
+  kind: z.enum(MEDIA_KINDS),
+  fileName: trimmed(1, 200),
+  contentType: trimmed(1, 128),
+  sizeBytes: z.coerce.number().int().positive(),
+});
+export type MediaUploadTicketInput = z.infer<typeof mediaUploadTicketSchema>;
+
+/** What the browser reports once the bytes are in Cloud Storage. */
+export const mediaCompleteSchema = z.object({
+  uploadId: trimmed(8, 64),
+  title: trimmed(2, 140),
+  caption: optionalText(600),
+  faceBlur: z.enum(FACE_BLUR_STATUSES),
+  facesBlurred: z.coerce.number().int().min(0).max(1000).nullable().default(null),
+});
+export type MediaCompleteInput = z.infer<typeof mediaCompleteSchema>;
+
+export const mediaMetadataSchema = z.object({
+  title: trimmed(2, 140),
+  caption: optionalText(600),
+});
 
 /* --------------------------------------------------------------- helper */
 

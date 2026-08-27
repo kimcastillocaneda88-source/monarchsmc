@@ -125,4 +125,56 @@ describe("uploads", () => {
     await assertFails(uploadBytes(ref(storage, "anything-else/evil.jpg"), IMAGE));
     await assertFails(getBytes(ref(storage, "anything-else/evil.jpg")));
   });
+
+  /**
+   * The media library area.
+   *
+   * Bytes reach media/ through a v4 signed URL, which carries the service
+   * account's own authority and so never passes through these rules at all.
+   * That makes it especially important that the rules themselves grant a client
+   * nothing here: a direct read would expose items still awaiting review, and a
+   * direct write would put a file in the bucket that /api/media/complete never
+   * verified.
+   */
+  describe("the media library area", () => {
+    it("is unreadable by anyone, including its own uploader", async () => {
+      const anon = env.unauthenticatedContext().storage();
+      await assertFails(getBytes(ref(anon, "media/member-uid/clip.webm")));
+
+      const member = env
+        .authenticatedContext("member-uid", {
+          role: "member",
+          membershipStatus: "active",
+          uploadAccess: true,
+        })
+        .storage();
+      await assertFails(getBytes(ref(member, "media/member-uid/clip.webm")));
+    });
+
+    it("refuses a direct write even from an account granted upload access", async () => {
+      // The grant authorises using the upload endpoint, never the bucket.
+      const member = env
+        .authenticatedContext("member-uid", {
+          role: "member",
+          membershipStatus: "active",
+          uploadAccess: true,
+        })
+        .storage();
+      await assertFails(uploadBytes(ref(member, "media/member-uid/unblurred.jpg"), IMAGE));
+      await assertFails(uploadBytes(ref(member, "media/other-uid/unblurred.jpg"), IMAGE));
+    });
+
+    it("refuses an admin and a superadmin too", async () => {
+      const admin = env
+        .authenticatedContext("admin-uid", { role: "admin", membershipStatus: "active" })
+        .storage();
+      await assertFails(uploadBytes(ref(admin, "media/admin-uid/clip.webm"), IMAGE));
+      await assertFails(getBytes(ref(admin, "media/member-uid/clip.webm")));
+
+      const superadmin = env
+        .authenticatedContext("root-uid", { role: "superadmin", membershipStatus: "active" })
+        .storage();
+      await assertFails(uploadBytes(ref(superadmin, "media/root-uid/clip.webm"), IMAGE));
+    });
+  });
 });

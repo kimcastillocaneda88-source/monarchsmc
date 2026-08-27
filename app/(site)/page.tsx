@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Hero } from "@/components/home/Hero";
+import { MemberAccess } from "@/components/home/MemberAccess";
 import { Intro } from "@/components/home/Intro";
 import { Principles } from "@/components/home/Principles";
 import { FeaturedRide } from "@/components/home/FeaturedRide";
@@ -69,6 +71,15 @@ export default async function HomePage() {
         imageUrl={page?.heroImageUrl ?? null}
         imageAlt={page?.heroImageAlt ?? null}
       />
+
+      {/*
+        Member sign-in sits directly beneath the hero so it is reachable without
+        hunting for it. It resolves the session cookie, so it is streamed inside
+        Suspense and the rest of the page paints without waiting on it.
+      */}
+      <Suspense fallback={<div className="border-t border-ash py-20 sm:py-24 lg:py-28" />}>
+        <MemberAccess />
+      </Suspense>
 
       <Intro
         title={section(page, "introTitle", fallbackFor("introTitle"))}

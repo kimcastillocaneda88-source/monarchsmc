@@ -100,9 +100,12 @@ describe("admin navigation scoping", () => {
     expect(editorLinks.map((link) => link.href).sort()).toEqual([
       "/admin",
       "/admin/gallery",
+      "/admin/media",
       "/admin/news",
     ]);
     expect(editorLinks.some((link) => link.href === "/admin/members")).toBe(false);
     expect(editorLinks.some((link) => link.href === "/admin/applications")).toBe(false);
+    // Access control is an officer's job, never an editor's.
+    expect(editorLinks.some((link) => link.href === "/admin/access")).toBe(false);
   });
 });

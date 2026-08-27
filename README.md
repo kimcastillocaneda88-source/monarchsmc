@@ -11,6 +11,9 @@ Next.js, TypeScript, Tailwind CSS, Firebase and Vercel.
 - [Overview](#overview)
 - [Architecture](#architecture)
 - [Authorization model](#authorization-model)
+- [Sign-in and access approval](#sign-in-and-access-approval)
+- [Media library and face blurring](#media-library-and-face-blurring)
+- [Typography](#typography)
 - [Data model](#data-model)
 - [Storage layout](#storage-layout)
 - [Prerequisites](#prerequisites)
@@ -124,8 +127,119 @@ browser:
   document's owner.
 - **No lock-out.** The last remaining superadmin cannot be demoted.
 
+Alongside the role ladder there is one **standalone permission**:
+
+| Permission | Granted by | Effect |
+| --- | --- | --- |
+| `uploadAccess` | Admin, per account, on `/admin/access` | May contribute photographs, video and files |
+
+It is deliberately not a role. A member can be trusted to add media without
+being given editorial power over the public site, and the grant can be withdrawn
+on its own without ending their membership. Editors and above can upload as part
+of their role and need no explicit grant. An account that is not active fails the
+check regardless of the grant, so suspending somebody removes it implicitly.
+
 Suspending or deactivating an account also revokes its refresh tokens, so
 existing sessions end immediately rather than at token expiry.
+
+---
+
+## Sign-in and access approval
+
+Members sign in with a **username and password**, from the panel on the landing
+page or from `/login`. Nobody gets in without an officer's decision.
+
+**Requesting access.** `/request-access` takes a username, a name, an email
+address and a password, and `POST /api/auth/register` creates the account in a
+state that grants nothing: `membershipStatus: "pending"`, the lowest role, and
+no upload permission. The password goes straight to Firebase Authentication and
+is never stored, logged or read back by this application.
+
+**Approving it.** An officer works from `/admin/access`, which lists every
+account with its username and status. Approving activates the membership;
+revoking suspends or retires it, drops the upload grant, and revokes refresh
+tokens so every open session ends at once. Approval and upload permission are
+two separate decisions — letting somebody in never silently lets them publish.
+Every transition is written to the audit log.
+
+**Why usernames need a lookup.** Firebase Authentication is keyed on email
+addresses, so the browser has to learn the address before it can sign in.
+`POST /api/auth/username` does that, and is written so it cannot be used to test
+whether an account exists: an unknown username resolves to a stable address
+under `unknown.invalid`, a domain RFC 2606 reserves so it can never be
+registered. The sign-in that follows fails exactly the way a wrong password
+does, and the UI shows the same message either way.
+
+Uniqueness is enforced by `usernames/{username}`, where the **document id is the
+username**. Reservations are made with `create()` inside a transaction, so two
+people submitting the same name at the same moment cannot both succeed — a
+read-then-write check would let them. The collection is denied to clients in
+both directions: readable, it would list every sign-in name in the club and undo
+the care taken above; writable, it would let one account claim another's name.
+
+---
+
+## Media library and face blurring
+
+Approved accounts contribute photographs, video and files from
+`/member/uploads`; officers moderate them on `/admin/media`; members browse what
+has been published at `/member/media`.
+
+**Faces are blurred in the browser, before anything is uploaded.** Detection
+uses the TinyFaceDetector model, served from `/models` on this origin rather
+than a public CDN, so no third party ever sees what is being uploaded. Stills
+are re-encoded — which also discards EXIF location data — and video is played
+once through a canvas, blurred frame by frame, and re-recorded with its audio
+intact. Each face gets a heavy blur *and* a pixelation pass: either alone is
+easier to reverse than both together.
+
+Doing this client-side is the whole point. Blurring after upload would mean the
+club's storage had held the unblurred original, however briefly. Here the
+original never leaves the uploader's device.
+
+**The honest limit.** Because it runs on the uploader's hardware, a modified
+client could skip it. The server records what the browser reported rather than
+believing it, and **every upload lands unapproved** — an officer sees the
+reported blur status against each item before anyone else can see it, and items
+marked "Blur did not run" are called out. The blur is a strong default, not an
+enforcement boundary.
+
+**Why uploads bypass the application.** A serverless function may only receive a
+4.5 MB request body, which any worthwhile video exceeds. So
+`POST /api/media/upload-url` authorises one upload and returns a v4 signed URL
+valid for a single object path it chose, one content type, one method, and half
+an hour. It cannot read anything or write outside the caller's own folder.
+
+The server still has the final word. `POST /api/media/complete` claims the
+upload ticket in a transaction (so a double submission cannot record the item
+twice), reads the stored object's leading bytes back out of the bucket,
+identifies the file from those bytes rather than its name or declared type,
+checks its real size against the ticket's ceiling, and **deletes anything that
+does not match**. A signed URL cannot be used to park an arbitrary file.
+
+Nothing under `media/` is public. `/api/media/file/[id]` decides who may see an
+item and answers with a 5-minute signed read URL, which keeps video seeking
+working without streaming half a gigabyte through a function.
+
+---
+
+## Typography
+
+The site is set in **Ironhorse**. The font files are deliberately **not
+committed**: Ironhorse is a licensed display face, unavailable from Google Fonts
+or any other CDN, so redistributing it here would breach its licence.
+
+Drop `ironhorse.woff2` into `public/fonts/` and everything picks it up with no
+further change — see [`public/fonts/README.md`](public/fonts/README.md). Until
+then the `@font-face` rule tries a locally installed copy first and otherwise
+never matches, so the stacks fall through to **Oswald**, the closest widely
+available condensed industrial face. A missing font file never breaks the build
+and never leaves the site unstyled.
+
+Ironhorse is applied site-wide, body copy included, which is what gives the site
+its character but costs some legibility at small sizes. To keep it for headings
+only, remove `"Ironhorse", ` from `--font-sans` in
+[`app/globals.css`](app/globals.css).
 
 ---
 
@@ -180,13 +294,24 @@ The composite indexes those queries need are in
 | `gallery/`, `news/`, `rides/`, `events/` | Public — these images appear on the public site | **Denied to all clients** |
 | `members/{uid}/` | **Denied.** Served by `/api/media/member/[uid]` after an authorization check | **Denied to all clients** |
 | `documents/` | **Denied.** Served by `/api/documents/[id]` via a 5-minute signed URL, and logged | **Denied to all clients** |
+| `media/{uid}/` | **Denied.** Served by `/api/media/file/[id]` via a 5-minute signed URL, after checking who is asking and whether the item is approved | **Denied to all clients** |
 
-**Why every client write is denied.** All uploads go through
-`POST /api/admin/upload`, which authenticates the caller, checks their role for
-the target area, applies a per-user rate limit, enforces a size ceiling, and
-identifies the file by **sniffing its actual leading bytes** — the declared MIME
-type and the filename are never trusted. Permitting direct client writes would
-let all of that be skipped, so the rules do not.
+**Why every client write is denied.** Uploads take one of two routes, and
+neither is a client write in the Security Rules sense:
+
+- `POST /api/admin/upload` sends the bytes through the server, which
+  authenticates the caller, checks their role for the target area, applies a
+  per-user rate limit, enforces a size ceiling, and identifies the file by
+  **sniffing its actual leading bytes** — the declared MIME type and the
+  filename are never trusted.
+- The media library issues a **v4 signed URL**, which carries the service
+  account's own authority and so never passes through these rules at all. That
+  is exactly why `/api/media/upload-url` chooses the object path and pins the
+  content type, and why `/api/media/complete` reads the stored object back and
+  deletes anything that was not what it authorised.
+
+Permitting direct client writes would let all of that be skipped, so the rules
+do not.
 
 Knowing a Storage path is never sufficient to read a private file.
 
@@ -348,14 +473,22 @@ npm run dev
 Seed accounts (emulator only — the script refuses to touch a real project
 unless `SEED_ALLOW_PRODUCTION=true`):
 
-| Email | Password | Role / status |
+Sign in with the **username**, not the address — the address is only what
+Firebase Authentication is keyed on.
+
+| Username | Password | Role / status |
 | --- | --- | --- |
-| `superadmin@monarchs.test` | `monarchs-superadmin-2026` | superadmin / active |
-| `admin@monarchs.test` | `monarchs-admin-2026` | admin / active |
-| `editor@monarchs.test` | `monarchs-editor-2026` | editor / active |
-| `member@monarchs.test` | `monarchs-member-2026` | member / active |
-| `pending@monarchs.test` | `monarchs-pending-2026` | member / pending |
-| `lifecycle@monarchs.test` | `monarchs-lifecycle-2026` | member / pending (used only by the membership-lifecycle test) |
+| `superadmin` | `monarchs-superadmin-2026` | superadmin / active |
+| `admin` | `monarchs-admin-2026` | admin / active |
+| `editor` | `monarchs-editor-2026` | editor / active |
+| `member` | `monarchs-member-2026` | member / active, **granted upload access** |
+| `pending` | `monarchs-pending-2026` | member / pending |
+| `lifecycle` | `monarchs-lifecycle-2026` | member / pending (used only by the membership-lifecycle test) |
+
+Each seeded address follows the pattern `<username>@monarchs.test`. The demo
+member carries the upload grant so the permission can be exercised from both
+sides — as a member who has it, and as `pending` or `editor` accounts that
+reach it a different way.
 
 Every seeded document is prefixed `[DEMO DATA — replace before launch]`. None of
 it asserts anything about the real club. **Production can start with completely
@@ -493,6 +626,25 @@ Stated plainly rather than hidden:
   Application outcomes are communicated by an officer out of band — deliberate,
   since the app never reveals internal application status. Adding Resend or
   Postmark would be a self-contained addition to the admin actions.
+- **Face blurring is a client-side default, not an enforcement boundary.** It
+  runs in the uploader's browser so that an unblurred original never leaves
+  their device, which is the right trade — but it also means a modified client
+  could skip it. The server records the reported outcome rather than trusting
+  it, and every upload waits for an officer's approval before anyone else can
+  see it. Server-side verification would need a face detector in the serverless
+  runtime and would defeat the point by requiring the unblurred file to be
+  uploaded first.
+- **Video processing runs in real time and re-encodes to WebM.** A clip is
+  played once through a canvas, so a three-minute video takes about three
+  minutes and the tab must stay open. Detection runs on a short interval rather
+  than every frame, with generous padding around each box to cover movement in
+  between. The output is WebM because that is what `MediaRecorder` is
+  guaranteed to produce; browsers without it cannot upload video.
+- **Requesting access reveals whether an email address is already registered.**
+  Sign-in does not leak account existence, but the request form says so plainly
+  when an address or username is taken. For a club roster behind officer
+  approval, telling somebody why their request failed is worth more than hiding
+  it.
 - **Image dimensions are not extracted on upload.** `width`/`height` on gallery
   items are `null`; the grid uses fixed aspect ratios, so nothing shifts. Adding
   `sharp` to the upload route would populate them.

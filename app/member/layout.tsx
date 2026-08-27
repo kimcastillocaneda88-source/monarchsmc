@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth/session";
 import { PortalShell } from "@/components/member/PortalShell";
-import { MEMBER_NAV } from "@/components/site/nav-links";
+import { MEMBER_NAV, UPLOAD_NAV } from "@/components/site/nav-links";
+import { canUploadMedia, type Principal } from "@/lib/auth/roles";
 
 export const metadata: Metadata = {
   title: { default: "Member area", template: "%s · Member area · MONARCHS MC" },
@@ -19,10 +20,16 @@ export default async function MemberLayout({ children }: { children: React.React
   const user = await getSessionUser();
   if (!user) redirect("/login?next=%2Fmember%2Fdashboard");
 
+  // The upload link is only drawn for accounts that actually have the grant.
+  // The page behind it enforces that independently.
+  const links = canUploadMedia(user as Principal)
+    ? [...MEMBER_NAV, UPLOAD_NAV]
+    : MEMBER_NAV;
+
   return (
     <PortalShell
       user={user}
-      links={MEMBER_NAV}
+      links={links}
       navLabel="Member area"
       areaLabel="Member area"
       areaHref="/member/dashboard"

@@ -21,17 +21,26 @@ export const MEMBER_NAV: NavLink[] = [
   { href: "/member/announcements", label: "Announcements" },
   { href: "/member/directory", label: "Directory" },
   { href: "/member/documents", label: "Documents" },
+  { href: "/member/media", label: "Media" },
   { href: "/member/profile", label: "Profile" },
   { href: "/member/settings", label: "Settings" },
 ];
 
+/**
+ * Shown only to accounts an administrator has granted upload access to.
+ * Hiding it is a courtesy, not a control — /member/uploads guards itself.
+ */
+export const UPLOAD_NAV: NavLink = { href: "/member/uploads", label: "Upload" };
+
 export const ADMIN_NAV: NavLink[] = [
   { href: "/admin", label: "Overview" },
+  { href: "/admin/access", label: "Access" },
   { href: "/admin/members", label: "Members" },
   { href: "/admin/applications", label: "Applications" },
   { href: "/admin/rides", label: "Rides" },
   { href: "/admin/events", label: "Events" },
   { href: "/admin/gallery", label: "Gallery" },
+  { href: "/admin/media", label: "Media" },
   { href: "/admin/news", label: "News" },
   { href: "/admin/announcements", label: "Announcements" },
   { href: "/admin/documents", label: "Documents" },
@@ -41,4 +50,9 @@ export const ADMIN_NAV: NavLink[] = [
 ];
 
 /** Which admin sections an editor (content-only role) may reach. */
-export const EDITOR_ADMIN_PATHS = new Set(["/admin", "/admin/news", "/admin/gallery"]);
+export const EDITOR_ADMIN_PATHS = new Set([
+  "/admin",
+  "/admin/news",
+  "/admin/gallery",
+  "/admin/media",
+]);

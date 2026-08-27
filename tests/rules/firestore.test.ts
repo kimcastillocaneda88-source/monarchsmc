@@ -522,6 +522,90 @@ describe("a superadmin", () => {
   });
 });
 
+/* ============================================ usernames and media library */
+
+/**
+ * The collections added for username sign-in and the media library.
+ *
+ * All three are closed to clients in both directions. Each is denied for a
+ * specific reason rather than merely because the catch-all would cover it, so
+ * they are asserted explicitly — including for a superadmin, who is the account
+ * most likely to be assumed exempt.
+ */
+describe("usernames, media and upload tickets", () => {
+  it("hides the username map from everyone, so sign-in names cannot be enumerated", async () => {
+    for (const context of [
+      anonymous(env),
+      asBare(env, "someone"),
+      as(env, MEMBER, "member", "active"),
+      as(env, SUPERADMIN, "superadmin", "active"),
+    ]) {
+      await assertFails(getDoc(doc(context.firestore(), "usernames", "roadcaptain")));
+    }
+  });
+
+  it("stops anyone claiming or hijacking a username directly", async () => {
+    // The document id is the uniqueness constraint, so a client write here
+    // would let one account take another's sign-in name.
+    const member = as(env, MEMBER, "member", "active").firestore();
+    await assertFails(setDoc(doc(member, "usernames", "brandnew"), { uid: MEMBER }));
+    await assertFails(updateDoc(doc(member, "usernames", "roadcaptain"), { uid: MEMBER }));
+
+    const superadmin = as(env, SUPERADMIN, "superadmin", "active").firestore();
+    await assertFails(setDoc(doc(superadmin, "usernames", "brandnew"), { uid: SUPERADMIN }));
+  });
+
+  it("keeps the media library server-side, even for an active member", async () => {
+    // Items are read through /api/media/file/[id], which checks who is asking
+    // and whether the item has been approved.
+    const member = as(env, MEMBER, "member", "active").firestore();
+    await assertFails(getDoc(doc(member, "media", "item-1")));
+    await assertFails(
+      getDocs(query(collection(member, "media"), where("approved", "==", true))),
+    );
+  });
+
+  it("stops a member publishing to the library by writing the record themselves", async () => {
+    // Approval is what backs the face blur review, so self-approval must be
+    // impossible from the client.
+    const member = as(env, MEMBER, "member", "active").firestore();
+    await assertFails(
+      setDoc(doc(member, "media", "forged"), {
+        title: "Forged",
+        kind: "image",
+        approved: true,
+        faceBlur: "applied",
+        uploadedBy: MEMBER,
+      }),
+    );
+    await assertFails(updateDoc(doc(member, "media", "item-1"), { approved: true }));
+    await assertFails(deleteDoc(doc(member, "media", "item-1")));
+  });
+
+  it("denies an editor and a superadmin direct writes to the library too", async () => {
+    for (const context of [
+      as(env, EDITOR, "editor", "active"),
+      as(env, SUPERADMIN, "superadmin", "active"),
+    ]) {
+      await assertFails(updateDoc(doc(context.firestore(), "media", "item-1"), { approved: true }));
+    }
+  });
+
+  it("keeps upload tickets out of reach, so an upload cannot be self-authorised", async () => {
+    const member = as(env, MEMBER, "member", "active").firestore();
+    await assertFails(getDoc(doc(member, "mediaUploads", "ticket-1")));
+    await assertFails(
+      setDoc(doc(member, "mediaUploads", "forged"), {
+        uid: MEMBER,
+        path: "media/other-uid/anything.jpg",
+        maxBytes: 999999999,
+      }),
+    );
+    // Marking somebody else's ticket unconsumed would allow it to be replayed.
+    await assertFails(updateDoc(doc(member, "mediaUploads", "ticket-1"), { consumed: false }));
+  });
+});
+
 /* ===================================================== unknown collection */
 
 describe("the default deny rule", () => {

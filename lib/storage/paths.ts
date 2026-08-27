@@ -10,6 +10,8 @@
  *   events/     — public event cover images
  *   members/    — member photographs, private
  *   documents/  — club documents, private, never client-readable
+ *   media/      — the member media library, private; every object is served
+ *                 through /api/media/file/[id], which checks who is asking
  */
 export const STORAGE_PREFIXES = {
   gallery: "gallery",
@@ -18,6 +20,7 @@ export const STORAGE_PREFIXES = {
   events: "events",
   members: "members",
   documents: "documents",
+  media: "media",
 } as const;
 
 export type StorageArea = keyof typeof STORAGE_PREFIXES;

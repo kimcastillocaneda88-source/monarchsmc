@@ -21,10 +21,14 @@ const allowProduction = process.env.SEED_ALLOW_PRODUCTION === "true";
 
 interface SeedAccount {
   email: string;
+  /** What this account signs in with; email is only Firebase's key. */
+  username: string;
   password: string;
   displayName: string;
   role: "member" | "editor" | "admin" | "superadmin";
   membershipStatus: "pending" | "active" | "suspended" | "inactive";
+  /** Granted the permission to upload photographs, video and files. */
+  uploadAccess?: boolean;
   position?: string;
   publicOfficer?: boolean;
   officerOrder?: number;
@@ -34,6 +38,7 @@ interface SeedAccount {
 const ACCOUNTS: SeedAccount[] = [
   {
     email: "superadmin@monarchs.test",
+    username: "superadmin",
     password: "monarchs-superadmin-2026",
     displayName: "Demo Superadmin",
     role: "superadmin",
@@ -45,6 +50,7 @@ const ACCOUNTS: SeedAccount[] = [
   },
   {
     email: "admin@monarchs.test",
+    username: "admin",
     password: "monarchs-admin-2026",
     displayName: "Demo Admin",
     role: "admin",
@@ -56,6 +62,7 @@ const ACCOUNTS: SeedAccount[] = [
   },
   {
     email: "editor@monarchs.test",
+    username: "editor",
     password: "monarchs-editor-2026",
     displayName: "Demo Editor",
     role: "editor",
@@ -63,14 +70,17 @@ const ACCOUNTS: SeedAccount[] = [
   },
   {
     email: "member@monarchs.test",
+    username: "member",
     password: "monarchs-member-2026",
     displayName: "Demo Member",
     role: "member",
     membershipStatus: "active",
+    uploadAccess: true,
     motorcycle: "Demo motorcycle",
   },
   {
     email: "pending@monarchs.test",
+    username: "pending",
     password: "monarchs-pending-2026",
     displayName: "Demo Pending Member",
     role: "member",
@@ -80,6 +90,7 @@ const ACCOUNTS: SeedAccount[] = [
     // Exists so the membership lifecycle can be exercised without mutating an
     // account another test signs in as. Nothing signs in as this one.
     email: "lifecycle@monarchs.test",
+    username: "lifecycle",
     password: "monarchs-lifecycle-2026",
     displayName: "Demo Lifecycle Member",
     role: "member",
@@ -114,17 +125,27 @@ async function upsertAccount(account: SeedAccount): Promise<string> {
   await auth.setCustomUserClaims(uid, {
     role: account.role,
     membershipStatus: account.membershipStatus,
+    uploadAccess: account.uploadAccess === true,
   });
 
   const db = cliDb();
   await db.collection("users").doc(uid).set(
     {
       email: account.email,
+      username: account.username,
       role: account.role,
       membershipStatus: account.membershipStatus,
+      uploadAccess: account.uploadAccess === true,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     },
+    { merge: true },
+  );
+
+  // The reservation document is what makes signing in by username work; the
+  // id is the username, which is also what enforces uniqueness.
+  await db.collection("usernames").doc(account.username).set(
+    { uid, email: account.email, createdAt: Date.now() },
     { merge: true },
   );
 
@@ -183,7 +204,9 @@ async function seed(): Promise<void> {
   for (const account of ACCOUNTS) {
     const uid = await upsertAccount(account);
     uids.set(account.email, uid);
-    console.log(`  account  ${account.email.padEnd(28)} ${account.role}/${account.membershipStatus}`);
+    console.log(
+      `  account  ${account.username.padEnd(12)} ${account.email.padEnd(28)} ${account.role}/${account.membershipStatus}${account.uploadAccess ? " +uploads" : ""}`,
+    );
   }
 
   const adminUid = uids.get("admin@monarchs.test") ?? "seed-admin";

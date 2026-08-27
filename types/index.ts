@@ -20,8 +20,26 @@ export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[number];
 export interface UserRecord {
   uid: string;
   email: string;
+  /**
+   * The name this account signs in with. Lowercase and unique across the club,
+   * with uniqueness enforced by the usernames/{username} reservation document
+   * rather than by this field, which cannot be queried atomically.
+   */
+  username: string;
   role: Role;
   membershipStatus: MembershipStatus;
+  /**
+   * Permission to upload photographs, video and files, granted and revoked by
+   * an administrator independently of membership.
+   *
+   * Deliberately separate from `role`: an ordinary member may be trusted to
+   * contribute media without being given any editorial power over the public
+   * site, and the grant can be withdrawn on its own without ending their
+   * membership.
+   */
+  uploadAccess: boolean;
+  uploadAccessGrantedBy?: string | null;
+  uploadAccessGrantedAt?: Millis | null;
   createdAt: Millis;
   updatedAt: Millis;
   lastLoginAt?: Millis | null;
@@ -255,6 +273,51 @@ export interface GalleryItem {
   updatedAt: Millis;
 }
 
+/* ----------------------------------------------------------- media library */
+
+/** What a stored media object actually is, decided by sniffing its bytes. */
+export const MEDIA_KINDS = ["image", "video", "file"] as const;
+export type MediaKind = (typeof MEDIA_KINDS)[number];
+
+/**
+ * Outcome of the automatic face blur.
+ *
+ * `applied`      — faces were found and every one of them was blurred.
+ * `no_faces`     — the detector ran to completion and found nothing to blur.
+ * `unsupported`  — the file is not an image or a video, so blurring
+ *                  does not apply (a PDF, a spreadsheet).
+ * `unavailable`  — the detector could not run in the uploader's browser.
+ *                  Uploads in this state are held back from publication.
+ */
+export const FACE_BLUR_STATUSES = ["applied", "no_faces", "unsupported", "unavailable"] as const;
+export type FaceBlurStatus = (typeof FACE_BLUR_STATUSES)[number];
+
+/**
+ * media/{id} — a photograph, video or file contributed by an approved account.
+ *
+ * The stored object is never public. It is reached only through
+ * /api/media/file/[id], which decides who may see it, so knowing an id or a
+ * storage path is not enough to read anything.
+ */
+export interface MediaItem {
+  id: string;
+  title: string;
+  caption: string | null;
+  kind: MediaKind;
+  storagePath: string;
+  contentType: string;
+  sizeBytes: number;
+  fileName: string;
+  faceBlur: FaceBlurStatus;
+  /** How many faces the detector blurred. Null when it never ran. */
+  facesBlurred: number | null;
+  uploadedBy: string;
+  uploaderName: string;
+  approved: boolean;
+  createdAt: Millis;
+  updatedAt: Millis;
+}
+
 /* ----------------------------------------------------------------- news */
 
 export const NEWS_CATEGORIES = [
@@ -418,6 +481,14 @@ export const AUDIT_ACTIONS = [
   "gallery.approve",
   "gallery.update",
   "gallery.delete",
+  "media.upload",
+  "media.approve",
+  "media.delete",
+  "access.request",
+  "access.approve",
+  "access.revoke",
+  "access.upload_grant",
+  "access.upload_revoke",
   "announcement.create",
   "announcement.update",
   "announcement.delete",
@@ -453,7 +524,9 @@ export interface Page<T> {
 export interface SessionUser {
   uid: string;
   email: string;
+  username: string;
   role: Role;
   membershipStatus: MembershipStatus;
+  uploadAccess: boolean;
   displayName: string | null;
 }

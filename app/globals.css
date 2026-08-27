@@ -3,26 +3,51 @@
 /* ------------------------------------------------------------------
    MONARCHS MC — design tokens
 
-   A restrained palette: near-black surfaces, warm off-white type, and a
-   single muted metallic gold used sparingly for rules, labels and accents.
+   Monochrome by design: pure black surfaces, gray type, and a single
+   bright silver used sparingly for rules, labels and accents.
    ------------------------------------------------------------------ */
 
-@theme {
-  --font-display: var(--font-oswald), "Oswald", "Arial Narrow", system-ui, sans-serif;
-  --font-sans: var(--font-inter), "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+/*
+   Ironhorse is a licensed display face, so it is not redistributed with this
+   repository and is not served from any font CDN. Drop the licensed files into
+   public/fonts/ (see public/fonts/README.md) and every rule below picks them up
+   with no further change.
 
-  --color-ink: #08080a;
-  --color-charcoal: #0e0e11;
-  --color-graphite: #141418;
-  --color-steel: #1c1c21;
-  --color-ash: #2a2a31;
-  --color-iron: #3a3a44;
-  --color-smoke: #6b6b76;
-  --color-mist: #9b9ba5;
-  --color-bone: #f2efe8;
-  --color-gold: #c8a45c;
-  --color-goldbright: #e2c489;
-  --color-bronze: #7d6234;
+   `local()` comes first so a copy already installed on the visitor's machine is
+   used without a download. When neither the local copy nor the hosted file is
+   present the @font-face simply never matches, and the stacks below fall
+   through to Oswald — a condensed industrial face chosen because it is the
+   closest widely available stand-in. Nothing breaks, at build time or in the
+   browser, when the font file is absent.
+*/
+@font-face {
+  font-family: "Ironhorse";
+  src:
+    local("Ironhorse"),
+    local("IronHorse"),
+    url("/fonts/ironhorse.woff2") format("woff2"),
+    url("/fonts/ironhorse.woff") format("woff");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-display: "Ironhorse", var(--font-oswald), "Oswald", "Arial Narrow", system-ui, sans-serif;
+  --font-sans: "Ironhorse", var(--font-oswald), "Oswald", var(--font-inter), "Inter", system-ui, sans-serif;
+
+  --color-ink: #000000;
+  --color-charcoal: #070707;
+  --color-graphite: #0d0d0d;
+  --color-steel: #141414;
+  --color-ash: #242424;
+  --color-iron: #343434;
+  --color-smoke: #767676;
+  --color-mist: #9a9a9a;
+  --color-bone: #b6b6b6;
+  --color-gold: #e4e4e4;
+  --color-goldbright: #f6f6f6;
+  --color-bronze: #6e6e6e;
   --color-danger: #d05a44;
   --color-success: #74a06d;
   --color-warning: #d0a04a;
@@ -139,7 +164,7 @@
 /* ------------------------------------------------------------ utilities */
 
 @layer utilities {
-  /* Editorial eyebrow label: tiny, wide-tracked, gold. */
+  /* Editorial eyebrow label: tiny, wide-tracked, bright silver. */
   .u-eyebrow {
     font-family: var(--font-display);
     font-size: 0.6875rem;
@@ -149,7 +174,7 @@
     line-height: 1;
   }
 
-  /* Fine metallic hairline used to separate editorial blocks. */
+  /* Fine silver hairline used to separate editorial blocks. */
   .u-hairline {
     background: linear-gradient(
       90deg,

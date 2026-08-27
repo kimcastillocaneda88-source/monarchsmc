@@ -1,11 +1,19 @@
 import type { Page } from "@playwright/test";
 
+/**
+ * Seeded demo accounts. Usernames are what the sign-in form asks for; the
+ * addresses are kept because some assertions still look for them on screen.
+ */
 export const ACCOUNTS = {
-  superadmin: { email: "superadmin@monarchs.test", password: "monarchs-superadmin-2026" },
-  admin: { email: "admin@monarchs.test", password: "monarchs-admin-2026" },
-  editor: { email: "editor@monarchs.test", password: "monarchs-editor-2026" },
-  member: { email: "member@monarchs.test", password: "monarchs-member-2026" },
-  pending: { email: "pending@monarchs.test", password: "monarchs-pending-2026" },
+  superadmin: {
+    username: "superadmin",
+    email: "superadmin@monarchs.test",
+    password: "monarchs-superadmin-2026",
+  },
+  admin: { username: "admin", email: "admin@monarchs.test", password: "monarchs-admin-2026" },
+  editor: { username: "editor", email: "editor@monarchs.test", password: "monarchs-editor-2026" },
+  member: { username: "member", email: "member@monarchs.test", password: "monarchs-member-2026" },
+  pending: { username: "pending", email: "pending@monarchs.test", password: "monarchs-pending-2026" },
 } as const;
 
 export type AccountName = keyof typeof ACCOUNTS;
@@ -13,7 +21,7 @@ export type AccountName = keyof typeof ACCOUNTS;
 /** Signs in through the real form and waits for the session cookie exchange. */
 export async function signIn(page: Page, account: AccountName, next?: string): Promise<void> {
   await page.goto(next ? `/login?next=${encodeURIComponent(next)}` : "/login");
-  await page.getByLabel("Email").fill(ACCOUNTS[account].email);
+  await page.getByLabel("Username").fill(ACCOUNTS[account].username);
   await page.getByLabel("Password").fill(ACCOUNTS[account].password);
   await Promise.all([
     page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 30_000 }),

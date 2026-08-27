@@ -27,6 +27,8 @@ export interface Principal {
   uid: string;
   role: Role;
   membershipStatus: MembershipStatus;
+  /** Administrator-granted permission to contribute media. */
+  uploadAccess?: boolean;
 }
 
 /** An account that may use the member portal at all. */
@@ -47,6 +49,24 @@ export function canManageClub(p: Principal): boolean {
 /** Superadmins only: role assignment and global configuration. */
 export function canManageAdministrators(p: Principal): boolean {
   return isActiveMember(p) && p.role === "superadmin";
+}
+
+/**
+ * May this principal upload photographs, video and files?
+ *
+ * Two ways to qualify, and membership must be active for both:
+ *   - an administrator granted `uploadAccess` to this specific account
+ *   - the account is an editor or above, whose job already includes putting
+ *     media on the public site
+ *
+ * The explicit grant is what makes this administrable: it is given to one
+ * account at a time and withdrawn the same way, without touching their role or
+ * ending their membership. Suspending a member removes it implicitly, because
+ * an inactive account fails the membership test regardless of the grant.
+ */
+export function canUploadMedia(p: Principal): boolean {
+  if (!isActiveMember(p)) return false;
+  return p.uploadAccess === true || hasRoleAtLeast(p.role, "editor");
 }
 
 /** Anyone who should be able to open /admin at all. */
